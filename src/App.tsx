@@ -1,54 +1,44 @@
 import React from 'react';
 import { AppLayout } from './components/layout/AppLayout';
+import { AppProvider } from './store/AppContext';
+import { Sidebar } from './components/layout/Sidebar';
 import { Dashboard } from './views/Dashboard/Dashboard';
-import { Home, Calendar, Users, Settings } from 'lucide-react';
+import { Planning } from './views/Planning/Planning';
+import { Personnel } from './views/Personnel/Personnel';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const MockSidebar: React.FC = () => (
-  <nav className="p-4 space-y-2">
-    <div className="px-3 py-2 bg-accent/10 text-accent rounded-lg flex items-center gap-3 font-medium cursor-pointer">
-      <Home size={20}/> Accueil
-    </div>
-    <div className="px-3 py-2 text-text-muted hover:bg-bg hover:text-text-main rounded-lg flex items-center gap-3 font-medium cursor-pointer transition-colors">
-      <Calendar size={20}/> Planning
-    </div>
-    <div className="px-3 py-2 text-text-muted hover:bg-bg hover:text-text-main rounded-lg flex items-center gap-3 font-medium cursor-pointer transition-colors">
-      <Users size={20}/> Personnel
-    </div>
-    <div className="px-3 py-2 text-text-muted hover:bg-bg hover:text-text-main rounded-lg flex items-center gap-3 font-medium cursor-pointer transition-colors">
-      <Settings size={20}/> Paramètres
-    </div>
-  </nav>
-);
-
-const AmbuplanApp = () => {
+const AppContent: React.FC = () => {
   return (
-    <AppLayout sidebar={<MockSidebar/>}>
-      <Dashboard/>
+    <AppLayout sidebar={<Sidebar />}>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/planning" element={<Planning />} />
+        <Route path="/personnel" element={<Personnel />} />
+        <Route path="/parametres" element={<div className="p-8"><h2 className="text-2xl font-bold text-text-main">Paramètres</h2><p className="text-text-muted mt-1">Configuration de l'application</p></div>} />
+        <Route path="/besoins" element={<div className="p-8"><h2 className="text-2xl font-bold text-text-main">Besoins</h2><p className="text-text-muted mt-1">Gestion des besoins journaliers</p></div>} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
     </AppLayout>
   );
 };
 
-const App = () => (
+const App: React.FC = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<AmbuplanApp />} />
-          <Route path="/index" element={<Index />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <AppProvider>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </AppProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
