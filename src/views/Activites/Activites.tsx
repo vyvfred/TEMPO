@@ -41,7 +41,7 @@ export const Activites: React.FC = () => {
     total: activites.length,
     uph: activites.filter(a => a.type === 'UPH').length,
     manifestations: activites.filter(a => a.type === 'manifestation').length,
-   Permanences: activites.filter(a => a.type === 'permanence').length,
+    permanences: activites.filter(a => a.type === 'permanence').length,
   };
 
   const handleDelete = (id: string) => {
@@ -84,7 +84,7 @@ export const Activites: React.FC = () => {
         <Card className="p-4 bg-purple-50 border-purple-200 rounded-xl text-center cursor-pointer"
           onClick={() => setFilterType('permanence')}>
           <p className="text-3xl font-bold text-purple-600">📍</p>
-          <p className="text-sm text-purple-600">{stats.Permanences} Perm.</p>
+          <p className="text-sm text-purple-600">{stats.permanences} Perm.</p>
         </Card>
       </div>
 
@@ -142,7 +142,7 @@ export const Activites: React.FC = () => {
             const bureau = bureaux.find(b => b.id === activite.bureauId);
             
             return (
-              <Card key={activite.id} className={`p-5 bg-surface border-2 border-l-4 border-l-4 rounded-xl hover:shadow-lg transition-all ${typeInfo.color.replace('100', '200').split(' ')[0]}`}>
+              <Card key={activite.id} className={`p-5 bg-surface border-2 border-l-4 rounded-xl hover:shadow-lg transition-all border-l-green-500`}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-2xl">{typeInfo.icon}</span>
