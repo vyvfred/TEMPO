@@ -34,7 +34,7 @@ export default {
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))"
+          foreground: "hsl(var(--destructive-foreground))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -50,19 +50,18 @@ export default {
         },
         card: {
           DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))"
+          foreground: "hsl(var(--card-foreground))",
         },
         sidebar: {
-          DEFAULT: "hsl(var(--sidebar-background))"
-          foreground: "hsl(var(--sidebar-foreground))"
-          primary: "hsl(var(--sidebar-primary))"
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))"
-          accent: "hsl(var(--sidebar-accent))"
-          "accent-foreground": "hsl(var(--sidebar-accent-foreground))"
-          border: "hsl(var(--sidebar-border))"
-          ring: "hsl(var(--sidebar-ring))"
+          DEFAULT: "hsl(var(--sidebar-background))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          primary: "hsl(var(--sidebar-primary))",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
         },
-        // Ambuplan custom colors
         bg: "var(--bg)",
         accent: "var(--accents)",
         "accent-light": "var(--accents-light)",
