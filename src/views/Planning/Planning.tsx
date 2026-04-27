@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAppState, Besoin, Activite, Tache } from '@/store/AppContext';
+import { generatePlanning } from '@/utils/planningAlgorithm';
 import { 
   Clock, AlertCircle, CheckCircle, MapPin, Plus, Printer, 
   Play, RefreshCw, Calendar, Activity as ActivityIcon, Briefcase,
@@ -9,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AffecterPersonnelModal } from '@/components/AffecterPersonnelModal';
+import { toast } from 'sonner';
 
 const quartLabels = {
   'matin': 'Matin (06h-14h)',
@@ -30,7 +32,7 @@ const activiteTypeConfig = {
 };
 
 export const Planning: React.FC = () => {
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
   const { besoins, activites, taches, personnel } = state;
   const [selectedBesoin, setSelectedBesoin] = useState<Besoin | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -63,8 +65,30 @@ export const Planning: React.FC = () => {
   const handleGeneratePlanning = () => {
     setIsGenerating(true);
     
-    // Simuler l'algorithme de génération
     setTimeout(() => {
+      const result = generatePlanning(besoins, personnel, state.selectedDate);
+      
+      for (const affectation of result.affectations) {
+        if (affectation.success) {
+          dispatch({
+            type: 'AFFECTER_PERSONNEL',
+            payload: { besoinId: affectation.besoinId, personnelId: affectation.personnelId },
+          });
+        }
+      }
+
+      if (result.affectations.length > 0) {
+        toast.success(`${result.affectations.length} affectation(s) effectuée(s) !`);
+      }
+      
+      if (result.alerts.length > 0) {
+        result.alerts.forEach(alert => toast.warning(alert));
+      }
+
+      if (result.nonCouverts.length > 0) {
+        toast.error(`${result.nonCouverts.length} besoin(s) restent non couverts`);
+      }
+
       setIsGenerating(false);
     }, 2000);
   };
