@@ -3,6 +3,7 @@ import { useAppState, Besoin } from '@/store/AppContext';
 import { Clock, AlertCircle, CheckCircle, MapPin, Plus, Printer } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { AffecterPersonnelModal } from '@/components/AffecterPersonnelModal';
 
 const quartLabels = {
