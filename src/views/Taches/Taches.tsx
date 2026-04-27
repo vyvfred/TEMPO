@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   Briefcase, Calendar, Plus, Search, X, Clock, Users,
-  Edit, Trash2, Phone, BookOpen, Wrench, Users2, FileText
+  Edit, Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -18,10 +18,6 @@ const typeConfig = {
   'autre': { color: 'bg-gray-100 text-gray-800 border-gray-300', icon: '📋', label: 'Autre' },
 };
 
-const statutConfig = {
-  'planifie': { color: 'bg-gray-100 text-gray-600', label: 'Planifié' },
-  'en-cours': { color: 'bg-blue-100 text-blue-600', label: 'En cours' },
-  'termine': { color: 'bg-green-100 text-green-600', label: 'Terminé<dyad-write path="src/views/Taches/Taches.tsx" description="Continuing Taches page creation">
 const statutConfig = {
   'planifie': { color: 'bg-gray-100 text-gray-600', label: 'Planifié' },
   'en-cours': { color: 'bg-blue-100 text-blue-600', label: 'En cours' },
