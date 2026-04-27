@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppState } from '@/store/AppContext';
-import { UserCircle, Bell, Settings, Activity, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { UserCircle, Bell, Settings, Activity, ChevronLeft, ChevronRight, Calendar, Sun, Moon } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const { state, dispatch } = useAppState();
+  const [isDark, setIsDark] = useState(false);
 
   const handleDateChange = (days: number) => {
     const currentDate = new Date(state.selectedDate);
@@ -13,6 +14,11 @@ export const Header: React.FC = () => {
 
   const handleToday = () => {
     dispatch({ type: 'SET_DATE', payload: new Date().toISOString().split('T')[0] });
+  };
+
+  const toggleDarkMode = () => {
+    setIsDark(!isDark);
+    document.documentElement.classList.toggle('dark');
   };
 
   return (
@@ -60,7 +66,14 @@ export const Header: React.FC = () => {
         </button>
       </div>
       
-      <div className="flex items-center gap-4 text-text-muted">
+      <div className="flex items-center gap-3 text-text-muted">
+        <button 
+          onClick={toggleDarkMode}
+          className="p-2 hover:bg-bg rounded-full transition-colors"
+          title={isDark ? "Mode clair" : "Mode sombre"}
+        >
+          {isDark ? <Sun size={20}/> : <Moon size={20}/>}
+        </button>
         <button className="p-2 hover:bg-bg rounded-full transition-colors relative">
           <Bell size={20}/>
           <span className="absolute top-1 right-1 w-2 h-2 bg-danger rounded-full"></span>

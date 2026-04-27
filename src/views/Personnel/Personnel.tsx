@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppState } from '@/store/AppContext';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Phone, Award } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { User, Search, Award } from 'lucide-react';
 
 const statutConfig = {
   'disponible': { color: 'bg-green-100 text-green-800', label: 'Disponible' },
@@ -14,6 +15,16 @@ const statutConfig = {
 export const Personnel: React.FC = () => {
   const { state } = useAppState();
   const { personnel } = state;
+  const [search, setSearch] = useState('');
+
+  const filteredPersonnel = personnel.filter(p => {
+    const searchLower = search.toLowerCase();
+    return (
+      p.nom.toLowerCase().includes(searchLower) ||
+      p.prenom.toLowerCase().includes(searchLower) ||
+      p.qualification.toLowerCase().includes(searchLower)
+    );
+  });
 
   const stats = {
     total: personnel.length,
@@ -30,7 +41,7 @@ export const Personnel: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card className="p-4 bg-surface border-border rounded-xl text-center">
           <p className="text-3xl font-bold text-text-main">{stats.total}</p>
           <p className="text-sm text-text-muted">Total</p>
@@ -49,9 +60,21 @@ export const Personnel: React.FC = () => {
         </Card>
       </div>
 
+      {/* Recherche */}
+      <div className="relative mb-6">
+        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+        <Input
+          type="text"
+          placeholder="Rechercher par nom, prénom ou qualification..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-10 bg-surface border-border"
+        />
+      </div>
+
       {/* Liste du personnel */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {personnel.map((person) => {
+        {filteredPersonnel.map((person) => {
           const statutInfo = statutConfig[person.statut];
           
           return (
@@ -77,6 +100,12 @@ export const Personnel: React.FC = () => {
           );
         })}
       </div>
+
+      {filteredPersonnel.length === 0 && (
+        <div className="text-center py-12 text-text-muted">
+          <p>Aucun personnel ne correspond à votre recherche.</p>
+        </div>
+      )}
     </div>
   );
 };

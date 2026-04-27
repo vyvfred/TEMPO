@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppState, Besoin } from '@/store/AppContext';
-import { Clock, AlertCircle, CheckCircle, MapPin, Plus } from 'lucide-react';
+import { Clock, AlertCircle, CheckCircle, MapPin, Plus, Printer } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AffecterPersonnelModal } from '@/components/AffecterPersonnelModal';
@@ -37,13 +37,23 @@ export const Planning: React.FC = () => {
     setModalOpen(true);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-text-main">Planning du jour</h2>
-        <p className="text-text-muted mt-1">
-          {new Date(state.selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-text-main">Planning du jour</h2>
+          <p className="text-text-muted mt-1">
+            {new Date(state.selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
+        <Button onClick={handlePrint} variant="outline" className="print:hidden">
+          <Printer size={16} className="mr-2" />
+          Imprimer
+        </Button>
       </div>
 
       {/* Personnel disponible */}

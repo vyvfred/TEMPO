@@ -1,9 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Calendar, Users, Settings, ClipboardList } from 'lucide-react';
+import { Home, Calendar, Users, Settings, ClipboardList, LayoutDashboard } from 'lucide-react';
 
 const navItems = [
-  { to: '/', icon: Home, label: 'Tableau de bord', end: true },
+  { to: '/', icon: Home, label: 'Accueil', end: true },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord', end: true },
   { to: '/planning', icon: Calendar, label: 'Planning' },
   { to: '/personnel', icon: Users, label: 'Personnel' },
   { to: '/besoins', icon: ClipboardList, label: 'Besoins' },
