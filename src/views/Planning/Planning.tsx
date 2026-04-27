@@ -9,7 +9,6 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AffecterPersonnelModal } from '@/components/AffecterPersonnelModal';
 import { toast } from 'sonner';
 
 const quartLabels = {
@@ -57,11 +56,6 @@ export const Planning: React.FC = () => {
     taches: filteredTaches.length,
   };
 
-  const handleOpenModal = (besoin: Besoin) => {
-    setSelectedBesoin(besoin);
-    setModalOpen(true);
-  };
-
   const handleGeneratePlanning = () => {
     setIsGenerating(true);
     
@@ -93,10 +87,6 @@ export const Planning: React.FC = () => {
     }, 2000);
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <div className="p-4 md:p-8">
       {/* Header */}
@@ -120,7 +110,7 @@ export const Planning: React.FC = () => {
             )}
             {isGenerating ? 'Génération...' : 'Générer Planning'}
           </Button>
-          <Button onClick={handlePrint} variant="outline" className="print:hidden">
+          <Button onClick={() => window.print()} variant="outline" className="print:hidden">
             <Printer size={16} className="mr-2" />
             Imprimer
           </Button>
@@ -251,16 +241,6 @@ export const Planning: React.FC = () => {
                         </div>
                       </div>
                     )}
-                    
-                    <Button
-                      onClick={() => handleOpenModal(besoin)}
-                      variant="outline"
-                      size="sm"
-                      className="w-full mt-4 border-accent text-accent hover:bg-accent hover:text-white"
-                    >
-                      <Plus size={14} className="mr-1" />
-                      Affecter du personnel
-                    </Button>
                   </Card>
                 );
               })}
@@ -367,13 +347,6 @@ export const Planning: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Modal d'affectation */}
-      <AffecterPersonnelModal
-        besoin={selectedBesoin}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-      />
     </div>
   );
 };

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAppState } from '@/store/AppContext';
+import { useNavigate } from 'react-router-dom';
 import { 
   UserCircle, Bell, Settings, Activity, ChevronLeft, ChevronRight, 
   Calendar, Sun, Moon, Keyboard, X, AlertTriangle, CheckCircle,
-  Building2, ChevronDown, Menu
+  Building2, ChevronDown, Menu, Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 
 interface Notification {
   id: string;
@@ -17,6 +19,7 @@ interface Notification {
 
 export const Header: React.FC = () => {
   const { state, dispatch } = useAppState();
+  const navigate = useNavigate();
   const [isDark, setIsDark] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -124,10 +127,11 @@ export const Header: React.FC = () => {
         {/* Left side - Logo and mobile menu */}
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 hover:bg-bg rounded-lg"
+            onClick={() => navigate('/')}
+            className="p-2 hover:bg-bg rounded-lg transition-colors"
+            title="Accueil"
           >
-            <Menu size={24} className="text-text-main" />
+            <Home size={20} className="text-text-muted" />
           </button>
           
           <div className="bg-accent p-2 rounded-lg text-white">
@@ -246,7 +250,10 @@ export const Header: React.FC = () => {
           </button>
           
           {/* Settings */}
-          <button className="p-2 hover:bg-bg rounded-full transition-colors">
+          <button 
+            onClick={() => navigate('/parametres')}
+            className="p-2 hover:bg-bg rounded-full transition-colors"
+          >
             <Settings size={20}/>
           </button>
           
