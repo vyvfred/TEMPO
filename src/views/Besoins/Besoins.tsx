@@ -3,8 +3,9 @@ import { useAppState, Besoin } from '@/store/AppContext';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Clock, Users, Filter, AlertCircle, CheckCircle, Plus, UserMinus } from 'lucide-react';
+import { MapPin, Clock, Filter, AlertCircle, CheckCircle, Plus, Download } from 'lucide-react';
 import { AffecterPersonnelModal } from '@/components/AffecterPersonnelModal';
+import { BesoinFormModal } from '@/components/BesoinFormModal';
 
 const quartLabels = {
   'matin': 'Matin (06h-14h)',
@@ -25,11 +26,12 @@ const typePosteLabels = {
 };
 
 export const Besoins: React.FC = () => {
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
   const { besoins, personnel } = state;
   const [filter, setFilter] = useState<'all' | 'non-couvert' | 'partiel' | 'complete'>('all');
   const [selectedBesoin, setSelectedBesoin] = useState<Besoin | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [formModalOpen, setFormModalOpen] = useState(false);
 
   const filteredBesoins = besoins.filter(b => {
     if (filter === 'all') return true;
@@ -48,11 +50,57 @@ export const Besoins: React.FC = () => {
     setModalOpen(true);
   };
 
+  const handleExportCSV = () => {
+    const headers = ['Service', 'Type', 'Quart', 'Requis', 'Affectés', 'Statut'];
+    const rows = filteredBesoins.map(b => [
+      b.service,
+      typePosteLabels[b.typePoste],
+      quartLabels[b.quart],
+      b.personnelRequis,
+      b.personnelAffecte.length,
+      statutConfig[b.statut].label,
+    ]);
+    
+    const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `besoins_${state.selectedDate}.csv`;
+    link.click();
+  };
+
+  const handleDelete = (besoinId: string) => {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce besoin ?')) {
+      const updatedBesoins = state.besoins.filter(b => b.id !== besoinId);
+      dispatch({ type: 'SET_BESOINS', payload: updatedBesoins });
+    }
+  };
+
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-text-main">Gestion des Besoins</h2>
-        <p className="text-text-muted mt-1">Vue d'ensemble des besoins journaliers</p>
+    <div className="p-4 md:p-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-text-main">Gestion des Besoins</h2>
+          <p className="text-text-muted mt-1">Vue d'ensemble des besoins journaliers</p>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleExportCSV} 
+            variant="outline" 
+            size="sm"
+            className="print:hidden"
+          >
+            <Download size={16} className="mr-1" />
+            Export CSV
+          </Button>
+          <Button 
+            onClick={() => setFormModalOpen(true)} 
+            className="bg-accent hover:bg-accent/90"
+          >
+            <Plus size={16} className="mr-1" />
+            Nouveau besoin
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -91,72 +139,100 @@ export const Besoins: React.FC = () => {
       )}
 
       {/* Liste des besoins */}
-      <div className="space-y-4">
-        {filteredBesoins.map((besoin) => {
-          const statutInfo = statutConfig[besoin.statut];
-          const StatusIcon = statutInfo.icon;
-          
-          return (
-            <Card key={besoin.id} className={`p-5 bg-surface border rounded-xl hover:shadow-md transition-shadow ${statutInfo.color}`}>
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <MapPin size={18} className="text-accent" />
-                    <h4 className="font-semibold text-text-main text-lg">{besoin.service}</h4>
-                    <Badge variant="outline" className={statutInfo.color}>
-                      <StatusIcon size={12} className="mr-1" />
-                      {statutInfo.label}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-text-muted">
-                    <div className="flex items-center gap-1">
-                      <Clock size={14} />
-                      {quartLabels[besoin.quart]}
+      {filteredBesoins.length > 0 ? (
+        <div className="space-y-4">
+          {filteredBesoins.map((besoin) => {
+            const statutInfo = statutConfig[besoin.statut];
+            const StatusIcon = statutInfo.icon;
+            
+            return (
+              <Card key={besoin.id} className={`p-4 md:p-5 bg-surface border rounded-xl hover:shadow-md transition-shadow ${statutInfo.color}`}>
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-3 mb-2">
+                      <MapPin size={18} className="text-accent" />
+                      <h4 className="font-semibold text-text-main text-lg">{besoin.service}</h4>
+                      <Badge variant="outline" className={statutInfo.color}>
+                        <StatusIcon size={12} className="mr-1" />
+                        {statutInfo.label}
+                      </Badge>
                     </div>
-                    <div className="flex items-center gap-1">
+                    
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-text-muted">
+                      <div className="flex items-center gap-1">
+                        <Clock size={14} />
+                        {quartLabels[besoin.quart]}
+                      </div>
                       <span className="font-medium">{typePosteLabels[besoin.typePoste]}</span>
                     </div>
                   </div>
-                </div>
-                
-                <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-text-main">{besoin.personnelAffecte.length}/{besoin.personnelRequis}</p>
-                    <p className="text-xs text-text-muted">affectés/requis</p>
-                  </div>
                   
-                  {besoin.personnelAffecte.length > 0 && (
-                    <div className="flex flex-wrap gap-1 max-w-[200px]">
-                      {besoin.personnelAffecte.map(id => {
-                        const p = personnel.find(person => person.id === id);
-                        return p ? (
-                          <span key={id} className="px-2 py-1 bg-accent/10 text-accent text-xs rounded-full">
-                            {p.prenom} {p.nom[0]}.
-                          </span>
-                        ) : null;
-                      })}
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-text-main">{besoin.personnelAffecte.length}/{besoin.personnelRequis}</p>
+                      <p className="text-xs text-text-muted">affectés/requis</p>
                     </div>
-                  )}
-                  
-                  <Button
-                    onClick={() => handleOpenModal(besoin)}
-                    className="bg-accent hover:bg-accent/90"
-                  >
-                    <Plus size={16} className="mr-1" />
-                    Affecter
-                  </Button>
+                    
+                    {besoin.personnelAffecte.length > 0 && (
+                      <div className="flex flex-wrap gap-1 max-w-[200px]">
+                        {besoin.personnelAffecte.map(id => {
+                          const p = personnel.find(person => person.id === id);
+                          return p ? (
+                            <span key={id} className="px-2 py-1 bg-accent/10 text-accent text-xs rounded-full">
+                              {p.prenom} {p.nom[0]}.
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => handleOpenModal(besoin)}
+                        className="bg-accent hover:bg-accent/90"
+                        size="sm"
+                      >
+                        <Plus size={14} className="mr-1" />
+                        Affecter
+                      </Button>
+                      <Button
+                        onClick={() => handleDelete(besoin.id)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-
-      {filteredBesoins.length === 0 && (
-        <div className="text-center py-12 text-text-muted">
-          <p>Aucun besoin ne correspond à ce filtre.</p>
+              </Card>
+            );
+          })}
         </div>
+      ) : (
+        <Card className="p-12 text-center bg-surface border-border rounded-xl">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-text-main mb-2">Aucun besoin</h3>
+          <p className="text-text-muted mb-4">
+            {filter !== 'all' 
+              ? 'Aucun besoin ne correspond à ce filtre.' 
+              : 'Aucun besoin n\'a été créé pour cette date.'}
+          </p>
+          {filter === 'all' && (
+            <Button 
+              onClick={() => setFormModalOpen(true)} 
+              className="bg-accent hover:bg-accent/90"
+            >
+              <Plus size={16} className="mr-1" />
+              Créer un besoin
+            </Button>
+          )}
+        </Card>
       )}
 
       {/* Modal d'affectation */}
@@ -164,6 +240,12 @@ export const Besoins: React.FC = () => {
         besoin={selectedBesoin}
         open={modalOpen}
         onOpenChange={setModalOpen}
+      />
+
+      {/* Modal de création */}
+      <BesoinFormModal
+        open={formModalOpen}
+        onOpenChange={setFormModalOpen}
       />
     </div>
   );
