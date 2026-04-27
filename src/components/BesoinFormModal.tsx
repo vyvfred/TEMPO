@@ -54,7 +54,6 @@ export const BesoinFormModal: React.FC<BesoinFormModalProps> = ({
     };
 
     if (isEditing) {
-      // Update existing need
       const updatedBesoins = state.besoins.map(b => 
         b.id === besoinToEdit.id 
           ? { ...b, ...needData }
@@ -63,7 +62,6 @@ export const BesoinFormModal: React.FC<BesoinFormModalProps> = ({
       dispatch({ type: 'SET_BESOINS', payload: updatedBesoins });
       toast.success(`Besoin "${service}" modifié avec succès`);
     } else {
-      // Create new need
       const newBesoin: Besoin = {
         id: `b${Date.now()}`,
         date: state.selectedDate,
@@ -157,7 +155,7 @@ export const BesoinFormModal: React.FC<BesoinFormModalProps> = ({
                 <SelectContent>
                   <SelectItem value="matin">Matin (06h-14h)</SelectItem>
                   <SelectItem value="apres-midi">Après-midi (14h-22h)</SelectItem>
-                  <SelectItem value="nuit">Nuit (22h-06h)</Option>
+                  <SelectItem value="nuit">Nuit (22h-06h)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
