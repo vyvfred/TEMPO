@@ -1,15 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '@/store/AppContext';
+import { generatePlanning } from '@/utils/planningAlgorithm';
 import { 
   Users, Truck, CalendarCheck, AlertTriangle, TrendingUp, 
   Activity as ActivityIcon, Briefcase, Clock, Award,
-  ArrowRight, CheckCircle, XCircle, UserPlus
+  ArrowRight, CheckCircle, XCircle, UserPlus, Sparkles
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { toast } from 'sonner';
 
 interface KPICardProps {
   title: string;
@@ -19,11 +21,15 @@ interface KPICardProps {
   trend?: number;
   color: string;
   bgColor: string;
+  onClick?: () => void;
 }
 
-const KPICard: React.FC<KPICardProps> = ({ title, value, subtitle, icon, trend, color, bgColor }) => {
+const KPICard: React.FC<KPICardProps> = ({ title, value, subtitle, icon, trend, color, bgColor, onClick }) => {
   return (
-    <Card className="p-5 bg-surface border-border rounded-xl shadow-sm hover:shadow-md transition-shadow">
+    <Card 
+      className={`p-5 bg-surface border-border rounded-xl shadow-sm hover:shadow-md transition-shadow ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-text-muted mb-1">{title}</p>
@@ -45,9 +51,10 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, subtitle, icon, trend, 
 };
 
 export const Dashboard: React.FC = () => {
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
   const navigate = useNavigate();
   const { personnel, besoins, activites, taches } = state;
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Calcul des KPIs réels
   const today = state.selectedDate;
@@ -63,7 +70,7 @@ export const Dashboard: React.FC = () => {
   const besoinsNonCouverts = besoinsDuJour.filter(b => b.statut === 'non-couvert').length;
   const tauxCouverture = besoinsDuJour.length > 0 
     ? Math.round((besoinsComplets / besoinsDuJour.length) * 100) 
-    : 0;
+    : 100;
 
   const activitiesDuJour = activites.filter(a => a.date === today);
   const tachesDuJour = taches.filter(t => t.date === today);
@@ -96,6 +103,40 @@ export const Dashboard: React.FC = () => {
   // Besoins critiques
   const besoinsCritiques = besoinsDuJour.filter(b => b.statut === 'non-couvert');
 
+  // Génération automatique du planning
+  const handleGeneratePlanning = () => {
+    setIsGenerating(true);
+    
+    setTimeout(() => {
+      const result = generatePlanning(besoins, personnel, today);
+      
+      // Appliquer les affectations
+      for (const affectation of result.affectations) {
+        if (affectation.success) {
+          dispatch({
+            type: 'AFFECTER_PERSONNEL',
+            payload: { besoinId: affectation.besoinId, personnelId: affectation.personnelId },
+          });
+        }
+      }
+
+      // Afficher les résultats
+      if (result.affectations.length > 0) {
+        toast.success(`${result.affectations.length} affectation(s) effectuée(s) !`);
+      }
+      
+      if (result.alerts.length > 0) {
+        result.alerts.forEach(alert => toast.warning(alert));
+      }
+
+      if (result.nonCouverts.length > 0) {
+        toast.error(`${result.nonCouverts.length} besoin(s) restent non couverts`);
+      }
+
+      setIsGenerating(false);
+    }, 1500);
+  };
+
   return (
     <div className="p-4 md:p-8">
       <div className="flex items-center justify-between mb-8">
@@ -105,9 +146,17 @@ export const Dashboard: React.FC = () => {
             {new Date(today).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <Button onClick={() => navigate('/planning')} className="bg-accent hover:bg-accent/90">
-          <ActivityIcon size={18} className="mr-2" />
-          Générer Planning
+        <Button 
+          onClick={handleGeneratePlanning} 
+          className="bg-accent hover:bg-accent/90"
+          disabled={isGenerating}
+        >
+          {isGenerating ? (
+            <Sparkles size={18} className="mr-2 animate-pulse" />
+          ) : (
+            <Sparkles size={18} className="mr-2" />
+          )}
+          {isGenerating ? 'Génération...' : 'Générer Planning'}
         </Button>
       </div>
 
@@ -151,22 +200,26 @@ export const Dashboard: React.FC = () => {
 
       {/* Additional Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="p-4 bg-surface border border-border rounded-xl text-center">
+        <div className="p-4 bg-surface border border-border rounded-xl text-center cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/personnel')}>
           <Award size={24} className="mx-auto mb-2 text-blue-600" />
           <p className="text-2xl font-bold text-text-main">{enFormation}</p>
           <p className="text-xs text-text-muted">En formation</p>
         </div>
-        <div className="p-4 bg-surface border border-border rounded-xl text-center">
+        <div className="p-4 bg-surface border border-border rounded-xl text-center cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/personnel')}>
           <Clock size={24} className="mx-auto mb-2 text-purple-600" />
           <p className="text-2xl font-bold text-text-main">{enConge}</p>
           <p className="text-xs text-text-muted">En congé</p>
         </div>
-        <div className="p-4 bg-surface border border-border rounded-xl text-center">
+        <div className="p-4 bg-surface border border-border rounded-xl text-center cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/taches')}>
           <Briefcase size={24} className="mx-auto mb-2 text-orange-600" />
           <p className="text-2xl font-bold text-text-main">{tachesDuJour.length}</p>
           <p className="text-xs text-text-muted">Tâches du jour</p>
         </div>
-        <div className="p-4 bg-surface border border-border rounded-xl text-center">
+        <div className="p-4 bg-surface border border-border rounded-xl text-center cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate('/activites')}>
           <ActivityIcon size={24} className="mx-auto mb-2 text-indigo-600" />
           <p className="text-2xl font-bold text-text-main">{activitiesDuJour.length}</p>
           <p className="text-xs text-text-muted">Activités</p>
@@ -233,7 +286,12 @@ export const Dashboard: React.FC = () => {
 
       {/* Personnel par bureau */}
       <Card className="p-6 bg-surface border-border rounded-xl mb-8">
-        <h3 className="text-lg font-bold text-text-main mb-4">Effectifs par Bureau</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-text-main">Effectifs par Bureau</h3>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/personnel')}>
+            Voir tout <ArrowRight size={16} className="ml-1"/>
+          </Button>
+        </div>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={bureauData}>
             <XAxis dataKey="name" tick={{ fontSize: 12 }} />
@@ -308,12 +366,12 @@ export const Dashboard: React.FC = () => {
             <span>Créer un besoin</span>
           </Button>
           <Button 
-            onClick={() => navigate('/activites')}
+            onClick={() => navigate('/planning')}
             variant="outline"
             className="h-auto py-4 flex flex-col items-center gap-2"
           >
             <ActivityIcon size={24} className="text-accent" />
-            <span>Planifier activité</span>
+            <span>Voir le planning</span>
           </Button>
         </div>
       </Card>

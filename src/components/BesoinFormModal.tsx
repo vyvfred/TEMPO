@@ -29,6 +29,9 @@ export const BesoinFormModal: React.FC<BesoinFormModalProps> = ({
   const [typePoste, setTypePoste] = useState<Besoin['typePoste']>(besoinToEdit?.typePoste || 'ambulance');
   const [quart, setQuart] = useState<Besoin['quart']>(besoinToEdit?.quart || 'matin');
   const [personnelRequis, setPersonnelRequis] = useState(besoinToEdit?.personnelRequis?.toString() || '1');
+  const [recurrente, setRecurrente] = useState(besoinToEdit?.recurrente || false);
+  const [beneficiaire, setBeneficiaire] = useState(besoinToEdit?.beneficiaire || '');
+  const [bureauId, setBureauId] = useState(besoinToEdit?.bureauId || state.bureaux[0]?.id || '');
 
   const isEditing = !!besoinToEdit;
 
@@ -45,6 +48,9 @@ export const BesoinFormModal: React.FC<BesoinFormModalProps> = ({
       typePoste,
       quart,
       personnelRequis: parseInt(personnelRequis, 10) || 1,
+      recurrente,
+      beneficiaire: beneficiaire.trim() || undefined,
+      bureauId,
     };
 
     if (isEditing) {
@@ -70,24 +76,27 @@ export const BesoinFormModal: React.FC<BesoinFormModalProps> = ({
     }
 
     onOpenChange(false);
-    // Reset form
+    resetForm();
+  };
+
+  const resetForm = () => {
     setService('');
     setTypePoste('ambulance');
     setQuart('matin');
     setPersonnelRequis('1');
+    setRecurrente(false);
+    setBeneficiaire('');
+    setBureauId(state.bureaux[0]?.id || '');
   };
 
   const handleClose = () => {
     onOpenChange(false);
-    setService('');
-    setTypePoste('ambulance');
-    setQuart('matin');
-    setPersonnelRequis('1');
+    resetForm();
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[450px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? 'Modifier le besoin' : 'Créer un besoin'}
@@ -101,7 +110,7 @@ export const BesoinFormModal: React.FC<BesoinFormModalProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div>
-            <label className="text-sm font-medium text-text-main mb-1 block">Service</label>
+            <label className="text-sm font-medium text-text-main mb-1 block">Service *</label>
             <Input
               value={service}
               onChange={(e) => setService(e.target.value)}
@@ -111,35 +120,51 @@ export const BesoinFormModal: React.FC<BesoinFormModalProps> = ({
           </div>
 
           <div>
-            <label className="text-sm font-medium text-text-main mb-1 block">Type de poste</label>
-            <Select value={typePoste} onValueChange={(v) => setTypePoste(v as Besoin['typePoste'])}>
+            <label className="text-sm font-medium text-text-main mb-1 block">Bureau *</label>
+            <Select value={bureauId} onValueChange={setBureauId}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ambulance">Ambulance</SelectItem>
-                <SelectItem value="VSL">VSL</SelectItem>
-                <SelectItem value="Taxis">Taxi</SelectItem>
+                {state.bureaux.map(bureau => (
+                  <SelectItem key={bureau.id} value={bureau.id}>{bureau.nom}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-text-main mb-1 block">Quart</label>
-            <Select value={quart} onValueChange={(v) => setQuart(v as Besoin['quart'])}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="matin">Matin (06h-14h)</SelectItem>
-                <SelectItem value="apres-midi">Après-midi (14h-22h)</SelectItem>
-                <SelectItem value="nuit">Nuit (22h-06h)</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-text-main mb-1 block">Type de poste *</label>
+              <Select value={typePoste} onValueChange={(v) => setTypePoste(v as Besoin['typePoste'])}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ambulance">Ambulance</SelectItem>
+                  <SelectItem value="VSL">VSL</SelectItem>
+                  <SelectItem value="taxi">Taxi</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-text-main mb-1 block">Quart *</label>
+              <Select value={quart} onValueChange={(v) => setQuart(v as Besoin['quart'])}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="matin">Matin (06h-14h)</SelectItem>
+                  <SelectItem value="apres-midi">Après-midi (14h-22h)</SelectItem>
+                  <SelectItem value="nuit">Nuit (22h-06h)</Option>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div>
-            <label className="text-sm font-medium text-text-main mb-1 block">Personnel requis</label>
+            <label className="text-sm font-medium text-text-main mb-1 block">Personnel requis *</label>
             <Input
               type="number"
               min="1"
@@ -148,6 +173,28 @@ export const BesoinFormModal: React.FC<BesoinFormModalProps> = ({
               onChange={(e) => setPersonnelRequis(e.target.value)}
               required
             />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-text-main mb-1 block">Bénéficiaire</label>
+            <Input
+              value={beneficiaire}
+              onChange={(e) => setBeneficiaire(e.target.value)}
+              placeholder="Ex: Hôpital Central"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="recurrente"
+              checked={recurrente}
+              onChange={(e) => setRecurrente(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300"
+            />
+            <label htmlFor="recurrente" className="text-sm text-text-main cursor-pointer">
+              Besoin récurrent (quotidien)
+            </label>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
