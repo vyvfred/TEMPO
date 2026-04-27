@@ -6,6 +6,9 @@ import { Dashboard } from './views/Dashboard/Dashboard';
 import { Planning } from './views/Planning/Planning';
 import { Personnel } from './views/Personnel/Personnel';
 import { Besoins } from './views/Besoins/Besoins';
+import { Activites } from './views/Activites/Activites';
+import { Taches } from './views/Taches/Taches';
+import { Absences } from './views/Absences/Absences';
 import { Parametres } from './views/Parametres/Parametres';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -26,6 +29,9 @@ const AppContent: React.FC = () => {
         <Route path="/planning" element={<Planning />} />
         <Route path="/personnel" element={<Personnel />} />
         <Route path="/besoins" element={<Besoins />} />
+        <Route path="/activites" element={<Activites />} />
+        <Route path="/taches" element={<Taches />} />
+        <Route path="/absences" element={<Absences />} />
         <Route path="/parametres" element={<Parametres />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

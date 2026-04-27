@@ -1,29 +1,44 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppState } from '@/store/AppContext';
-import { Users, Truck, CalendarCheck, AlertTriangle, TrendingUp } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { 
+  Users, Truck, CalendarCheck, AlertTriangle, TrendingUp, 
+  Activity as ActivityIcon, Briefcase, Clock, Award,
+  ArrowRight, CheckCircle, XCircle, UserPlus
+} from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Button } from '@/components/ui/button';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 
 interface KPICardProps {
   title: string;
   value: string | number;
   subtitle: string;
   icon: React.ReactNode;
-  trend?: 'up' | 'down' | 'neutral';
-  color?: string;
+  trend?: number;
+  color: string;
+  bgColor: string;
 }
 
-const KPICard: React.FC<KPICardProps> = ({ title, value, subtitle, icon, trend = 'neutral', color = 'bg-gray-50 text-text-muted' }) => {
+const KPICard: React.FC<KPICardProps> = ({ title, value, subtitle, icon, trend, color, bgColor }) => {
   return (
-    <Card className="p-5 bg-surface border-border rounded-xl shadow-sm flex items-start justify-between hover:shadow-md transition-shadow">
-      <div>
-        <p className="text-sm font-medium text-text-muted mb-1">{title}</p>
-        <h3 className="text-2xl font-bold text-text-main">{value}</h3>
-        <p className="text-xs text-text-muted mt-2">{subtitle}</p>
-      </div>
-      <div className={`p-3 rounded-lg ${color}`}>
-        {icon}
+    <Card className="p-5 bg-surface border-border rounded-xl shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-medium text-text-muted mb-1">{title}</p>
+          <h3 className="text-3xl font-bold" style={{ color }}>{value}</h3>
+          <p className="text-xs text-text-muted mt-2">{subtitle}</p>
+          {trend !== undefined && (
+            <div className={`flex items-center gap-1 mt-2 text-xs ${trend >= 0 ? 'text-success' : 'text-danger'}`}>
+              <TrendingUp size={14} className={trend < 0 ? 'rotate-180' : ''} />
+              <span>{Math.abs(trend)}% vs hier</span>
+            </div>
+          )}
+        </div>
+        <div className={`p-3 rounded-xl ${bgColor}`} style={{ color }}>
+          {icon}
+        </div>
       </div>
     </Card>
   );
@@ -31,7 +46,8 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, subtitle, icon, trend =
 
 export const Dashboard: React.FC = () => {
   const { state } = useAppState();
-  const { personnel, besoins } = state;
+  const navigate = useNavigate();
+  const { personnel, besoins, activites, taches } = state;
 
   // Calcul des KPIs réels
   const today = state.selectedDate;
@@ -39,7 +55,8 @@ export const Dashboard: React.FC = () => {
   
   const disponibles = personnel.filter(p => p.statut === 'disponible').length;
   const enPoste = personnel.filter(p => p.statut === 'en-poste').length;
-  const totalActifs = disponibles + enPoste;
+  const enFormation = personnel.filter(p => p.statut === 'formation').length;
+  const enConge = personnel.filter(p => p.statut === 'conge').length;
   
   const besoinsComplets = besoinsDuJour.filter(b => b.statut === 'complete').length;
   const besoinsPartiels = besoinsDuJour.filter(b => b.statut === 'partiel').length;
@@ -48,45 +65,50 @@ export const Dashboard: React.FC = () => {
     ? Math.round((besoinsComplets / besoinsDuJour.length) * 100) 
     : 0;
 
-  // Besoins critiques (non couverts)
-  const besoinsCritiques = besoinsDuJour.filter(b => b.statut === 'non-couvert');
+  const activitiesDuJour = activites.filter(a => a.date === today);
+  const tachesDuJour = taches.filter(t => t.date === today);
 
-  // Données pour le graphique en barres (besoins par service)
-  const servicesData = besoinsDuJour.reduce((acc, besoin) => {
-    const existing = acc.find(a => a.name === besoin.service);
-    if (existing) {
-      existing.value += besoin.personnelRequis;
-    } else {
-      acc.push({ name: besoin.service, value: besoin.personnelRequis });
-    }
-    return acc;
-  }, [] as { name: string; value: number }[]);
-
-  // Données pour le camembert (statuts)
+  // Données pour graphiques
   const statutData = [
     { name: 'Complets', value: besoinsComplets, color: '#10b981' },
     { name: 'Partiels', value: besoinsPartiels, color: '#f59e0b' },
     { name: 'Non couverts', value: besoinsNonCouverts, color: '#ef4444' },
   ].filter(d => d.value > 0);
 
-  // Données par quart
   const quartData = ['matin', 'apres-midi', 'nuit'].map(quart => {
     const besoinsQuart = besoinsDuJour.filter(b => b.quart === quart);
-    const labels = { matin: 'Matin', 'apres-midi': 'A-Midi', nuit: 'Nuit' };
     return {
-      name: labels[quart as keyof typeof labels],
+      name: quart === 'matin' ? 'Matin' : quart === 'apres-midi' ? 'Après-midi' : 'Nuit',
       besoins: besoinsQuart.length,
       couverts: besoinsQuart.filter(b => b.statut === 'complete').length,
     };
   });
 
+  const bureauData = state.bureaux.map(bureau => {
+    const bureauPersonnel = personnel.filter(p => p.bureauId === bureau.id);
+    return {
+      name: bureau.nom.replace('Bureau ', '').replace('Antenne ', ''),
+      disponibles: bureauPersonnel.filter(p => p.statut === 'disponible').length,
+      enPoste: bureauPersonnel.filter(p => p.statut === 'en-poste').length,
+    };
+  });
+
+  // Besoins critiques
+  const besoinsCritiques = besoinsDuJour.filter(b => b.statut === 'non-couvert');
+
   return (
     <div className="p-4 md:p-8">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-text-main">Tableau de bord</h2>
-        <p className="text-text-muted mt-1">
-          {new Date(today).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold text-text-main">Tableau de bord</h2>
+          <p className="text-text-muted mt-1">
+            {new Date(today).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
+        <Button onClick={() => navigate('/planning')} className="bg-accent hover:bg-accent/90">
+          <ActivityIcon size={18} className="mr-2" />
+          Générer Planning
+        </Button>
       </div>
 
       {/* KPIs */}
@@ -94,59 +116,66 @@ export const Dashboard: React.FC = () => {
         <KPICard 
           title="Effectifs Disponibles" 
           value={disponibles} 
-          subtitle={`${totalActifs} actifs aujourd'hui`}
-          icon={<Users size={24}/>}
-          trend={disponibles > 5 ? 'up' : 'down'}
-          color="bg-green-50 text-success"
+          subtitle={`${personnel.filter(p => p.actif).length} actifs au total`}
+          icon={<Users size={28}/>}
+          trend={5}
+          color="#10b981"
+          bgColor="bg-green-50"
         />
         <KPICard 
           title="En Poste" 
           value={enPoste} 
-          subtitle={`${personnel.length} effectifs totaux`}
-          icon={<Truck size={24}/>}
-          trend="neutral"
-          color="bg-blue-50 text-blue-600"
+          subtitle={`${activitiesDuJour.length} activités`}
+          icon={<Truck size={28}/>}
+          color="#0f766e"
+          bgColor="bg-teal-50"
         />
         <KPICard 
           title="Taux de Couverture" 
           value={`${tauxCouverture}%`} 
-          subtitle={`${besoinsComplets}/${besoinsDuJour.length} besoins couverts`}
-          icon={<CalendarCheck size={24}/>}
-          trend={tauxCouverture >= 80 ? 'up' : 'down'}
-          color={tauxCouverture >= 80 ? 'bg-green-50 text-success' : 'bg-yellow-50 text-warning'}
+          subtitle={`${besoinsComplets}/${besoinsDuJour.length} besoins`}
+          icon={<CalendarCheck size={28}/>}
+          trend={tauxCouverture >= 80 ? 12 : -8}
+          color={tauxCouverture >= 80 ? '#10b981' : '#f59e0b'}
+          bgColor={tauxCouverture >= 80 ? 'bg-green-50' : 'bg-yellow-50'}
         />
         <KPICard 
           title="Alertes" 
           value={besoinsNonCouverts + besoinsPartiels} 
-          subtitle={`${besoinsNonCouverts} non couverts, ${besoinsPartiels} partiels`}
-          icon={<AlertTriangle size={24}/>}
-          trend={besoinsNonCouverts > 0 ? 'down' : 'up'}
-          color={besoinsNonCouverts > 0 ? 'bg-red-50 text-danger' : 'bg-green-50 text-success'}
+          subtitle={`${besoinsNonCouverts} non couverts`}
+          icon={<AlertTriangle size={28}/>}
+          color={besoinsNonCouverts > 0 ? '#ef4444' : '#10b981'}
+          bgColor={besoinsNonCouverts > 0 ? 'bg-red-50' : 'bg-green-50'}
         />
+      </div>
+
+      {/* Additional Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="p-4 bg-surface border border-border rounded-xl text-center">
+          <Award size={24} className="mx-auto mb-2 text-blue-600" />
+          <p className="text-2xl font-bold text-text-main">{enFormation}</p>
+          <p className="text-xs text-text-muted">En formation</p>
+        </div>
+        <div className="p-4 bg-surface border border-border rounded-xl text-center">
+          <Clock size={24} className="mx-auto mb-2 text-purple-600" />
+          <p className="text-2xl font-bold text-text-main">{enConge}</p>
+          <p className="text-xs text-text-muted">En congé</p>
+        </div>
+        <div className="p-4 bg-surface border border-border rounded-xl text-center">
+          <Briefcase size={24} className="mx-auto mb-2 text-orange-600" />
+          <p className="text-2xl font-bold text-text-main">{tachesDuJour.length}</p>
+          <p className="text-xs text-text-muted">Tâches du jour</p>
+        </div>
+        <div className="p-4 bg-surface border border-border rounded-xl text-center">
+          <ActivityIcon size={24} className="mx-auto mb-2 text-indigo-600" />
+          <p className="text-2xl font-bold text-text-main">{activitiesDuJour.length}</p>
+          <p className="text-xs text-text-muted">Activités</p>
+        </div>
       </div>
 
       {/* Graphiques */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Graphique en barres - Besoins par service */}
-        <Card className="p-6 bg-surface border-border rounded-xl">
-          <h3 className="text-lg font-bold text-text-main mb-4">Besoins par Service</h3>
-          {servicesData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={servicesData}>
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="value" fill="#0f766e" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-[250px] flex items-center justify-center text-text-muted">
-              Aucune donnée disponible
-            </div>
-          )}
-        </Card>
-
-        {/* Camembert - Statuts des besoins */}
+        {/* Statut des besoins */}
         <Card className="p-6 bg-surface border-border rounded-xl">
           <h3 className="text-lg font-bold text-text-main mb-4">Statut des Besoins</h3>
           {statutData.length > 0 ? (
@@ -157,10 +186,11 @@ export const Dashboard: React.FC = () => {
                     data={statutData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
+                    innerRadius={50}
+                    outerRadius={90}
+                    paddingAngle={3}
                     dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   >
                     {statutData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -172,7 +202,8 @@ export const Dashboard: React.FC = () => {
             </div>
           ) : (
             <div className="h-[250px] flex items-center justify-center text-text-muted">
-              Aucune donnée disponible
+              <CheckCircle size={32} className="mr-2" />
+              Aucun besoin aujourd'hui
             </div>
           )}
           <div className="flex justify-center gap-4 mt-4">
@@ -184,60 +215,106 @@ export const Dashboard: React.FC = () => {
             ))}
           </div>
         </Card>
+
+        {/* Besoins par quart */}
+        <Card className="p-6 bg-surface border-border rounded-xl">
+          <h3 className="text-lg font-bold text-text-main mb-4">Répartition par Quart</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={quartData}>
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip />
+              <Bar dataKey="besoins" name="Total" fill="#0f766e" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="couverts" name="Couverts" fill="#10b981" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
       </div>
 
-      {/* Graphique par quart */}
+      {/* Personnel par bureau */}
       <Card className="p-6 bg-surface border-border rounded-xl mb-8">
-        <h3 className="text-lg font-bold text-text-main mb-4">Répartition par Quart</h3>
+        <h3 className="text-lg font-bold text-text-main mb-4">Effectifs par Bureau</h3>
         <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={quartData}>
+          <BarChart data={bureauData}>
             <XAxis dataKey="name" tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip />
-            <Bar dataKey="besoins" name="Total besoins" fill="#0f766e" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="couverts" name="Couverts" fill="#10b981" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="disponibles" name="Disponibles" fill="#10b981" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="enPoste" name="En poste" fill="#0f766e" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </Card>
 
-      {/* Section des alertes */}
+      {/* Alertes */}
       {besoinsCritiques.length > 0 && (
-        <Card className="p-6 bg-red-50 border-danger rounded-xl mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle size={20} className="text-danger" />
-            <h3 className="text-lg font-bold text-danger">Besoins Non Couverts</h3>
+        <Card className="p-6 bg-red-50 border-2 border-red-200 rounded-xl mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={24} className="text-danger" />
+              <h3 className="text-lg font-bold text-danger">Besoins Non Couverts</h3>
+            </div>
+            <Badge variant="destructive">{besoinsCritiques.length}</Badge>
           </div>
           <div className="space-y-2">
-            {besoinsCritiques.map(besoin => (
-              <div key={besoin.id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-red-100">
-                <div>
-                  <span className="font-semibold text-text-main">{besoin.service}</span>
-                  <span className="text-text-muted ml-2">• {besoin.quart}</span>
+            {besoinsCritiques.map(besoin => {
+              const bureau = state.bureaux.find(b => b.id === besoin.bureauId);
+              return (
+                <div key={besoin.id} className="flex items-center justify-between bg-white p-4 rounded-lg border border-red-100">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                      <XCircle size={20} className="text-danger" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-text-main">{besoin.service}</p>
+                      <p className="text-sm text-text-muted">{bureau?.nom} • {besoin.quart.replace('-', ' ')}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-bold text-danger">{besoin.personnelRequis}</p>
+                    <p className="text-xs text-text-muted">requis</p>
+                  </div>
                 </div>
-                <div className="text-sm text-danger">
-                  {besoin.personnelRequis} agent(s) requis
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
+          <Button 
+            onClick={() => navigate('/besoins')}
+            variant="outline" 
+            className="w-full mt-4 border-red-300 text-red-600 hover:bg-red-100"
+          >
+            Gérer les besoins <ArrowRight size={16} className="ml-2" />
+          </Button>
         </Card>
       )}
 
-      {/* Résumé par quart */}
+      {/* Actions rapides */}
       <Card className="p-6 bg-surface border-border rounded-xl">
-        <h3 className="text-lg font-bold text-text-main mb-4">Vue d'ensemble</h3>
-        <div className="grid grid-cols-3 gap-4">
-          {['matin', 'apres-midi', 'nuit'].map(quart => {
-            const besoinsQuart = besoinsDuJour.filter(b => b.quart === quart);
-            const labels = { matin: 'Matin', 'apres-midi': 'Après-midi', nuit: 'Nuit' };
-            return (
-              <div key={quart} className="text-center p-4 bg-bg rounded-lg">
-                <p className="text-sm text-text-muted mb-1">{labels[quart as keyof typeof labels]}</p>
-                <p className="text-2xl font-bold text-text-main">{besoinsQuart.length}</p>
-                <p className="text-xs text-text-muted">besoins</p>
-              </div>
-            );
-          })}
+        <h3 className="text-lg font-bold text-text-main mb-4">Actions rapides</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Button 
+            onClick={() => navigate('/personnel')}
+            variant="outline"
+            className="h-auto py-4 flex flex-col items-center gap-2"
+          >
+            <UserPlus size={24} className="text-accent" />
+            <span>Ajouter personnel</span>
+          </Button>
+          <Button 
+            onClick={() => navigate('/besoins')}
+            variant="outline"
+            className="h-auto py-4 flex flex-col items-center gap-2"
+          >
+            <CalendarCheck size={24} className="text-accent" />
+            <span>Créer un besoin</span>
+          </Button>
+          <Button 
+            onClick={() => navigate('/activites')}
+            variant="outline"
+            className="h-auto py-4 flex flex-col items-center gap-2"
+          >
+            <ActivityIcon size={24} className="text-accent" />
+            <span>Planifier activité</span>
+          </Button>
         </div>
       </Card>
     </div>

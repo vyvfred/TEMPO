@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAppState } from '@/store/AppContext';
-import { UserCircle, Bell, Settings, Activity, ChevronLeft, ChevronRight, Calendar, Sun, Moon, Keyboard, X, AlertTriangle, CheckCircle } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { 
+  UserCircle, Bell, Settings, Activity, ChevronLeft, ChevronRight, 
+  Calendar, Sun, Moon, Keyboard, X, AlertTriangle, CheckCircle,
+  Building2, ChevronDown, Menu
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 interface Notification {
   id: string;
@@ -16,7 +20,9 @@ export const Header: React.FC = () => {
   const [isDark, setIsDark] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showBureauSelector, setShowBureauSelector] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -36,6 +42,10 @@ export const Header: React.FC = () => {
       if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
         setShowShortcuts(prev => !prev);
       }
+      if (e.key === 'Escape') {
+        setShowNotifications(false);
+        setShowBureauSelector(false);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -48,6 +58,7 @@ export const Header: React.FC = () => {
     const besoinsDuJour = state.besoins.filter(b => b.date === today);
     const nonCouverts = besoinsDuJour.filter(b => b.statut === 'non-couvert');
     const partiels = besoinsDuJour.filter(b => b.statut === 'partiel');
+    const upcomingActivities = state.activites.filter(a => a.date === today);
     
     const newNotifications: Notification[] = [];
     
@@ -69,17 +80,17 @@ export const Header: React.FC = () => {
       });
     }
     
-    if (nonCouverts.length === 0 && partiels.length === 0 && besoinsDuJour.length > 0) {
+    if (upcomingActivities.length > 0) {
       newNotifications.push({
-        id: 'all-covered',
+        id: 'activities',
         type: 'success',
-        message: 'Tous les besoins sont couverts !',
+        message: `${upcomingActivities.length} activité${upcomingActivities.length > 1 ? 's' : ''} prévue${upcomingActivities.length > 1 ? 's' : ''} aujourd'hui`,
         timestamp: new Date(),
       });
     }
     
     setNotifications(newNotifications);
-  }, [state.besoins, state.selectedDate]);
+  }, [state.besoins, state.activites, state.selectedDate]);
 
   const handleDateChange = (days: number) => {
     const currentDate = new Date(state.selectedDate);
@@ -91,27 +102,44 @@ export const Header: React.FC = () => {
     dispatch({ type: 'SET_DATE', payload: new Date().toISOString().split('T')[0] });
   };
 
+  const handleBureauSelect = (bureauId: string | null) => {
+    dispatch({ type: 'SET_BUREAU', payload: bureauId });
+    setShowBureauSelector(false);
+  };
+
   const toggleDarkMode = () => {
     setIsDark(!isDark);
     document.documentElement.classList.toggle('dark');
   };
 
   const unreadCount = notifications.filter(n => n.type !== 'success').length;
+  
+  const selectedBureau = state.selectedBureauId 
+    ? state.bureaux.find(b => b.id === state.selectedBureauId) 
+    : null;
 
   return (
     <>
       <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-4 md:px-6 z-10">
+        {/* Left side - Logo and mobile menu */}
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 hover:bg-bg rounded-lg"
+          >
+            <Menu size={24} className="text-text-main" />
+          </button>
+          
           <div className="bg-accent p-2 rounded-lg text-white">
             <Activity size={24}/>
           </div>
           <div className="hidden sm:block">
-            <h1 className="text-xl font-bold text-text-main leading-tight">Ambuplan Pro</h1>
-            <span className="text-xs font-semibold text-accent uppercase tracking-wider">Agence SGXV</span>
+            <h1 className="text-xl font-bold text-text-main leading-tight">{state.currentAgence.nom}</h1>
+            <span className="text-xs font-semibold text-accent uppercase tracking-wider">{state.currentAgence.code}</span>
           </div>
         </div>
 
-        {/* Sélecteur de date */}
+        {/* Center - Date selector */}
         <div className="flex items-center gap-2 bg-bg px-3 md:px-4 py-2 rounded-lg">
           <button 
             onClick={() => handleDateChange(-1)}
@@ -124,7 +152,7 @@ export const Header: React.FC = () => {
           <div className="flex items-center gap-2 min-w-[140px] md:min-w-[180px] justify-center">
             <Calendar size={16} className="text-accent" />
             <span className="text-sm font-medium text-text-main">
-              {new Date(state.selectedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+              {new Date(state.selectedDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
             </span>
           </div>
           
@@ -144,7 +172,49 @@ export const Header: React.FC = () => {
           </button>
         </div>
         
-        <div className="flex items-center gap-2 md:gap-4 text-text-muted">
+        {/* Right side - Actions */}
+        <div className="flex items-center gap-2 md:gap-3 text-text-muted">
+          {/* Bureau selector */}
+          <div className="relative hidden md:block">
+            <button 
+              onClick={() => setShowBureauSelector(!showBureauSelector)}
+              className="flex items-center gap-2 px-3 py-2 bg-bg rounded-lg hover:bg-accent/10 transition-colors"
+            >
+              <Building2 size={18} className="text-accent" />
+              <span className="text-sm text-text-main max-w-[100px] truncate">
+                {selectedBureau ? selectedBureau.nom : 'Tous les sites'}
+              </span>
+              <ChevronDown size={16} />
+            </button>
+            
+            {showBureauSelector && (
+              <div className="absolute top-full right-0 mt-2 w-64 bg-surface border border-border rounded-xl shadow-xl z-50">
+                <div className="p-2">
+                  <button 
+                    onClick={() => handleBureauSelect(null)}
+                    className={`w-full text-left px-3 py-2 rounded-lg hover:bg-bg transition-colors ${!state.selectedBureauId ? 'bg-accent/10 text-accent' : 'text-text-main'}`}
+                  >
+                    <div className="font-medium">Tous les sites</div>
+                    <div className="text-xs text-text-muted">{state.bureaux.length} bureaux</div>
+                  </button>
+                </div>
+                <div className="border-t border-border p-2">
+                  {state.bureaux.map(bureau => (
+                    <button 
+                      key={bureau.id}
+                      onClick={() => handleBureauSelect(bureau.id)}
+                      className={`w-full text-left px-3 py-2 rounded-lg hover:bg-bg transition-colors ${state.selectedBureauId === bureau.id ? 'bg-accent/10 text-accent' : 'text-text-main'}`}
+                    >
+                      <div className="font-medium">{bureau.nom}</div>
+                      <div className="text-xs text-text-muted">{bureau.responsable}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Dark mode toggle */}
           <button 
             onClick={toggleDarkMode}
             className="p-2 hover:bg-bg rounded-full transition-colors hidden sm:block"
@@ -152,6 +222,8 @@ export const Header: React.FC = () => {
           >
             {isDark ? <Sun size={20}/> : <Moon size={20}/>}
           </button>
+          
+          {/* Keyboard shortcuts */}
           <button 
             onClick={() => setShowShortcuts(true)}
             className="p-2 hover:bg-bg rounded-full transition-colors hidden sm:block"
@@ -159,24 +231,30 @@ export const Header: React.FC = () => {
           >
             <Keyboard size={20}/>
           </button>
+          
+          {/* Notifications */}
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
             className="p-2 hover:bg-bg rounded-full transition-colors relative"
           >
             <Bell size={20}/>
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-danger text-white text-xs rounded-full flex items-center justify-center font-bold">
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-danger text-white text-xs rounded-full flex items-center justify-center font-bold animate-pulse">
                 {unreadCount}
               </span>
             )}
           </button>
+          
+          {/* Settings */}
           <button className="p-2 hover:bg-bg rounded-full transition-colors">
             <Settings size={20}/>
           </button>
+          
+          {/* User */}
           <div className="h-8 w-px bg-border mx-1 hidden md:block"></div>
-          <div className="flex items-center gap-2 cursor-pointer hover:bg-bg p-1 pr-3 rounded-full transition-colors border border-transparent hover:border-border">
+          <div className="hidden md:flex items-center gap-2 cursor-pointer hover:bg-bg p-1 pr-3 rounded-full transition-colors border border-transparent hover:border-border">
             <UserCircle size={32} className="text-accent"/>
-            <div className="hidden md:flex flex-col text-sm">
+            <div className="flex flex-col text-sm">
               <span className="font-semibold text-text-main line-clamp-1">{state.user.prenom} {state.user.nom}</span>
               <span className="text-xs text-text-muted">{state.user.role}</span>
             </div>
@@ -199,15 +277,16 @@ export const Header: React.FC = () => {
                 <div key={notif.id} className={`p-4 border-b border-border last:border-0 flex items-start gap-3 ${
                   notif.type === 'error' ? 'bg-red-50' : notif.type === 'warning' ? 'bg-yellow-50' : 'bg-green-50'
                 }`}>
-                  {notif.type === 'error' && <AlertTriangle size={18} className="text-danger" />}
-                  {notif.type === 'warning' && <AlertTriangle size={18} className="text-warning" />}
-                  {notif.type === 'success' && <CheckCircle size={18} className="text-success" />}
+                  {notif.type === 'error' && <AlertTriangle size={18} className="text-danger flex-shrink-0" />}
+                  {notif.type === 'warning' && <AlertTriangle size={18} className="text-warning flex-shrink-0" />}
+                  {notif.type === 'success' && <CheckCircle size={18} className="text-success flex-shrink-0" />}
                   <p className="text-sm text-text-main">{notif.message}</p>
                 </div>
               ))
             ) : (
               <div className="p-8 text-center text-text-muted">
-                <p>Aucune notification</p>
+                <CheckCircle size={32} className="mx-auto mb-2 text-success" />
+                <p>Tout est en ordre !</p>
               </div>
             )}
           </div>
@@ -216,25 +295,32 @@ export const Header: React.FC = () => {
 
       {/* Shortcuts Modal */}
       {showShortcuts && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowShortcuts(false)}>
-          <div className="bg-surface rounded-xl p-6 max-w-md mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
-            <h2 className="text-xl font-bold text-text-main mb-4">Raccourcis clavier</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowShortcuts(false)}>
+          <div className="bg-surface rounded-xl p-6 max-w-md w-full shadow-xl" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-text-main mb-4 flex items-center gap-2">
+              <Keyboard size={24} className="text-accent" />
+              Raccourcis clavier
+            </h2>
             <div className="space-y-3">
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-text-muted">Jour précédent</span>
-                <kbd className="px-2 py-1 bg-bg rounded text-sm font-mono">Ctrl + ←</kbd>
+                <kbd className="px-3 py-1.5 bg-bg rounded text-sm font-mono border border-border">Ctrl + ←</kbd>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-text-muted">Jour suivant</span>
-                <kbd className="px-2 py-1 bg-bg rounded text-sm font-mono">Ctrl + →</kbd>
+                <kbd className="px-3 py-1.5 bg-bg rounded text-sm font-mono border border-border">Ctrl + →</kbd>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-text-muted">Revenir à aujourd'hui</span>
-                <kbd className="px-2 py-1 bg-bg rounded text-sm font-mono">Ctrl + T</kbd>
+                <kbd className="px-3 py-1.5 bg-bg rounded text-sm font-mono border border-border">Ctrl + T</kbd>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-text-muted">Afficher cette aide</span>
-                <kbd className="px-2 py-1 bg-bg rounded text-sm font-mono">?</kbd>
+                <kbd className="px-3 py-1.5 bg-bg rounded text-sm font-mono border border-border">?</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-text-muted">Fermer les modals</span>
+                <kbd className="px-3 py-1.5 bg-bg rounded text-sm font-mono border border-border">Esc</kbd>
               </div>
             </div>
             <Button onClick={() => setShowShortcuts(false)} className="w-full mt-6" variant="outline">

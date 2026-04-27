@@ -13,9 +13,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ sidebar, children, rightPa
       <Header/>
       
       <div className={`flex-1 grid ${rightPanel ? 'grid-cols-layout' : 'grid-cols-[260px_1fr]'} overflow-hidden`}>
-        <aside className="bg-surface border-r border-border overflow-y-auto">
-          {sidebar}
-        </aside>
+        {sidebar && (
+          <aside className="bg-surface border-r border-border overflow-y-auto">
+            {sidebar}
+          </aside>
+        )}
         
         <main className="overflow-y-auto overflow-x-hidden relative">
           {children}
