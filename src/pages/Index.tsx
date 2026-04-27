@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Activity, ArrowRight, Users, Calendar, ClipboardList, Activity as ActivityIcon, Briefcase, FileText, TrendingUp, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Activity, ArrowRight, Users, Calendar, ClipboardList, Activity as ActivityIcon, Briefcase, FileText, TrendingUp, AlertTriangle, CheckCircle, Clock, CalendarDays } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,13 +29,13 @@ const Index = () => {
     },
     { 
       path: '/planning', 
-      icon: Calendar, 
-      title: 'Planning', 
-      description: 'Génération automatique',
+      icon: CalendarDays, 
+      title: 'Planning Mensuel', 
+      description: 'Générer et visualiser les semaines',
       color: 'bg-gradient-to-br from-teal-500 to-teal-600',
       bgColor: 'bg-teal-50',
       iconColor: 'text-teal-600',
-      badge: 'Nouveau'
+      badge: 'Principal'
     },
     { 
       path: '/personnel', 
@@ -263,6 +263,28 @@ const Index = () => {
             )}
           </Card>
         </div>
+
+        {/* Planning Mensuel CTA */}
+        <Card className="mt-6 p-6 bg-gradient-to-r from-accent/10 to-accent-light/10 border-accent/20 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="bg-accent/20 p-3 rounded-xl">
+                <CalendarDays size={32} className="text-accent" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-text-main">Planning Mensuel</h3>
+                <p className="text-text-muted">Générez et visualisez votre planning sur plusieurs semaines</p>
+              </div>
+            </div>
+            <Button 
+              onClick={() => navigate('/planning')}
+              className="bg-accent hover:bg-accent/90"
+            >
+              <Calendar size={16} className="mr-2" />
+              Accéder au planning
+            </Button>
+          </div>
+        </Card>
       </div>
     </div>
   );

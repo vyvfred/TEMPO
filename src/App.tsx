@@ -4,12 +4,13 @@ import { AppProvider } from './store/AppContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { Dashboard } from './views/Dashboard/Dashboard';
 import { Planning } from './views/Planning/Planning';
-import { Personnel } from './views/Personnel/Personnel';
-import { Besoins } from './views/Besoins/Besoins';
-import { Activites } from './views/Activites/Activites';
-import { Taches } from './views/Taches/Taches';
-import { Absences } from './views/Absences/Absences';
-import { Parametres } from './views/Parametres/Parametres';
+import { Personnel } from '@/views/Personnel/Personnel';
+import { Besoins } from '@/views/Besoins/Besoins';
+import { Activites } from '@/views/Activites/Activites';
+import { Taches } from '@/views/Taches/Taches';
+import { Absences } from '@/views/Absences/Absences';
+import { Parametres } from '@/views/Parametres/Parametres';
+import { MonthlyPlanner } from '@/views/Planning/MonthlyPlanner';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -26,7 +27,7 @@ const AppContent: React.FC = () => {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/planning" element={<Planning />} />
+        <Route path="/planning" element={<MonthlyPlanner />} />
         <Route path="/personnel" element={<Personnel />} />
         <Route path="/besoins" element={<Besoins />} />
         <Route path="/activites" element={<Activites />} />

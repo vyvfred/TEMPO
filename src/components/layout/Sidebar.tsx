@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { 
   Home, LayoutDashboard, Calendar, Users, ClipboardList, 
   Activity, Briefcase, FileText, Settings, ChevronDown, 
-  MapPin, Clock, Award, AlertTriangle, TrendingUp
+  MapPin, Clock, Award, AlertTriangle, TrendingUp, CalendarDays
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAppState } from '@/store/AppContext';
@@ -11,7 +11,7 @@ import { useAppState } from '@/store/AppContext';
 const navItems = [
   { to: '/', icon: Home, label: 'Accueil', end: true },
   { to: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord', end: true },
-  { to: '/planning', icon: Calendar, label: 'Planning', badge: 'new' },
+  { to: '/planning', icon: CalendarDays, label: 'Planning Mensuel', badge: 'Principal' },
   { to: '/personnel', icon: Users, label: 'Personnel' },
   { to: '/besoins', icon: ClipboardList, label: 'Besoins' },
   { to: '/activites', icon: Activity, label: 'Activités' },
