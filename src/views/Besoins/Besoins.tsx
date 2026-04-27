@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   MapPin, Clock, Filter, AlertCircle, CheckCircle, Plus, 
-  Download, Search, X, Calendar, RefreshCw, ChevronDown,
-  Trash2, Edit, Eye
+  Download, Search, X, Calendar
 } from 'lucide-react';
 import { AffecterPersonnelModal } from '@/components/AffecterPersonnelModal';
+import { BesoinFormModal } from '@/components/BesoinFormModal';
 import { toast } from 'sonner';
 
 const quartLabels = {
@@ -39,10 +39,9 @@ export const Besoins: React.FC = () => {
   const [selectedQuart, setSelectedQuart] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedBesoin, setSelectedBesoin] = useState<Besoin | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-
-  // Services uniques
-  const services = [...new Set(besoins.map(b => b.service))].sort();
+  const [modalAffectOpen, setModalAffectOpen] = useState(false);
+  const [modalFormOpen, setModalFormOpen] = useState(false);
+  const [besoinToEdit, setBesoinToEdit] = useState<Besoin | null>(null);
 
   const filteredBesoins = besoins.filter(b => {
     if (filter !== 'all' && b.statut !== filter) return false;
@@ -60,9 +59,14 @@ export const Besoins: React.FC = () => {
     nonCouvert: besoins.filter(b => b.statut === 'non-couvert').length,
   };
 
-  const handleOpenModal = (besoin: Besoin) => {
+  const handleOpenAffectModal = (besoin: Besoin) => {
     setSelectedBesoin(besoin);
-    setModalOpen(true);
+    setModalAffectOpen(true);
+  };
+
+  const handleOpenFormModal = (besoin?: Besoin) => {
+    setBesoinToEdit(besoin || null);
+    setModalFormOpen(true);
   };
 
   const handleDelete = (besoinId: string) => {
@@ -120,7 +124,7 @@ export const Besoins: React.FC = () => {
             <Download size={16} className="mr-1" />
             Export CSV
           </Button>
-          <Button className="bg-accent hover:bg-accent/90">
+          <Button onClick={() => handleOpenFormModal()} className="bg-accent hover:bg-accent/90">
             <Plus size={16} className="mr-1" />
             Nouveau besoin
           </Button>
@@ -213,21 +217,6 @@ export const Besoins: React.FC = () => {
                 {bureaux.find(b => b.id === selectedBureau)?.nom} ×
               </Badge>
             )}
-            {selectedQuart !== 'all' && (
-              <Badge variant="outline" className="cursor-pointer" onClick={() => setSelectedQuart('all')}>
-                {selectedQuart} ×
-              </Badge>
-            )}
-            {selectedType !== 'all' && (
-              <Badge variant="outline" className="cursor-pointer" onClick={() => setSelectedType('all')}>
-                {selectedType} ×
-              </Badge>
-            )}
-            {searchService && (
-              <Badge variant="outline" className="cursor-pointer" onClick={() => setSearchService('')}>
-                "{searchService}" ×
-              </Badge>
-            )}
             <Button variant="ghost" size="sm" onClick={clearFilters} className="ml-auto">
               <X size={14} className="mr-1" />
               Effacer tout
@@ -297,15 +286,19 @@ export const Besoins: React.FC = () => {
                     
                     <div className="flex gap-2">
                       <Button
-                        onClick={() => handleOpenModal(besoin)}
+                        onClick={() => handleOpenAffectModal(besoin)}
                         className="bg-accent hover:bg-accent/90"
                         size="sm"
                       >
                         <Plus size={14} className="mr-1" />
                         Affecter
                       </Button>
-                      <Button variant="outline" size="sm">
-                        <Edit size={14} />
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleOpenFormModal(besoin)}
+                      >
+                        Modifier
                       </Button>
                       <Button
                         onClick={() => handleDelete(besoin.id)}
@@ -313,7 +306,7 @@ export const Besoins: React.FC = () => {
                         size="sm"
                         className="text-red-500 hover:text-red-700 hover:bg-red-50"
                       >
-                        <Trash2 size={14} />
+                        Supprimer
                       </Button>
                     </div>
                   </div>
@@ -339,7 +332,7 @@ export const Besoins: React.FC = () => {
               Effacer les filtres
             </Button>
           ) : (
-            <Button className="bg-accent hover:bg-accent/90">
+            <Button onClick={() => handleOpenFormModal()} className="bg-accent hover:bg-accent/90">
               <Plus size={16} className="mr-1" />
               Créer un besoin
             </Button>
@@ -350,8 +343,15 @@ export const Besoins: React.FC = () => {
       {/* Modal d'affectation */}
       <AffecterPersonnelModal
         besoin={selectedBesoin}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
+        open={modalAffectOpen}
+        onOpenChange={setModalAffectOpen}
+      />
+
+      {/* Modal de création/édition */}
+      <BesoinFormModal
+        open={modalFormOpen}
+        onOpenChange={setModalFormOpen}
+        besoinToEdit={besoinToEdit}
       />
     </div>
   );

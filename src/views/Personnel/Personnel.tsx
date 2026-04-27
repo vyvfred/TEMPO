@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   User, Search, Award, Phone, Mail, MapPin, Calendar,
-  Moon, Sun, AlertTriangle, Plus, ChevronRight, Filter,
-  Edit, Trash2, Eye, EyeOff, TrendingUp
+  Moon, Sun, AlertTriangle, Plus
 } from 'lucide-react';
+import { PersonnelFormModal } from '@/components/PersonnelFormModal';
 import { toast } from 'sonner';
 
 const statutConfig = {
@@ -26,6 +26,8 @@ export const Personnel: React.FC = () => {
   const [filterStatut, setFilterStatut] = useState<string>('all');
   const [filterBureau, setFilterBureau] = useState<string>('all');
   const [showInactive, setShowInactive] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [personnelToEdit, setPersonnelToEdit] = useState<Personnel | null>(null);
 
   const filteredPersonnel = personnel.filter(p => {
     if (!showInactive && !p.actif) return false;
@@ -37,7 +39,7 @@ export const Personnel: React.FC = () => {
         p.nom.toLowerCase().includes(searchLower) ||
         p.prenom.toLowerCase().includes(searchLower) ||
         p.email.toLowerCase().includes(searchLower) ||
-        p.qualification.nom.toLowerCase().includes(searchLower)
+        (p.qualification?.nom || '').toLowerCase().includes(searchLower)
       );
     }
     return true;
@@ -48,6 +50,11 @@ export const Personnel: React.FC = () => {
     disponible: personnel.filter(p => p.statut === 'disponible' && p.actif).length,
     enPoste: personnel.filter(p => p.statut === 'en-poste' && p.actif).length,
     autre: personnel.filter(p => p.statut !== 'disponible' && p.statut !== 'en-poste' && p.actif).length,
+  };
+
+  const handleOpenModal = (person?: Personnel) => {
+    setPersonnelToEdit(person || null);
+    setModalOpen(true);
   };
 
   const handleToggleActif = (personnelId: string) => {
@@ -69,7 +76,7 @@ export const Personnel: React.FC = () => {
           <h2 className="text-2xl font-bold text-text-main">Personnel</h2>
           <p className="text-text-muted mt-1">Gestion des {stats.total} effectifs de l'agence</p>
         </div>
-        <Button className="bg-accent hover:bg-accent/90">
+        <Button onClick={() => handleOpenModal()} className="bg-accent hover:bg-accent/90">
           <Plus size={16} className="mr-2" />
           Ajouter personnel
         </Button>
@@ -129,8 +136,7 @@ export const Personnel: React.FC = () => {
             onClick={() => setShowInactive(!showInactive)}
             className={showInactive ? 'bg-gray-500' : ''}
           >
-            {showInactive ? <EyeOff size={16} /> : <Eye size={16} />}
-            <span className="ml-2">Inactifs</span>
+            {showInactive ? 'Avec inactifs' : 'Actifs uniquement'}
           </Button>
         </div>
       </Card>
@@ -155,7 +161,7 @@ export const Personnel: React.FC = () => {
                   person.statut === 'conge' ? 'bg-gray-400' :
                   person.statut === 'formation' ? 'bg-purple-500' : 'bg-red-500'
                 }`}>
-                  {person.prenom[0]}{person.nom[0]}
+                  {person.prenom?.[0]}{person.nom?.[0]}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
@@ -166,7 +172,7 @@ export const Personnel: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-text-muted mt-1">
                     <Award size={14} />
-                    <span>{person.qualification.nom}</span>
+                    <span>{person.qualification?.nom || person.qualification}</span>
                   </div>
                 </div>
               </div>
@@ -201,7 +207,7 @@ export const Personnel: React.FC = () => {
                     WE
                   </Badge>
                 )}
-                {person.restrictions.length > 0 && (
+                {person.restrictions?.length > 0 && (
                   <Badge variant="outline" className="bg-red-50 text-red-600">
                     <AlertTriangle size={12} className="mr-1" />
                     {person.restrictions.length} restr.
@@ -209,26 +215,14 @@ export const Personnel: React.FC = () => {
                 )}
               </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-2 pt-4 border-t border-border">
-                <div className="text-center">
-                  <p className="text-lg font-bold text-accent">{person.affectationsCount}</p>
-                  <p className="text-xs text-text-muted">Affectations</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold text-success">{person.equidadScore}%</p>
-                  <p className="text-xs text-text-muted">Équité</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold text-blue-600">{person.cpRestants}</p>
-                  <p className="text-xs text-text-muted">CP</p>
-                </div>
-              </div>
-
               {/* Actions */}
-              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
-                <Button variant="outline" size="sm" className="flex-1">
-                  <Edit size={14} className="mr-1" />
+              <div className="flex items-center gap-2 pt-4 border-t border-border">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => handleOpenModal(person)}
+                >
                   Modifier
                 </Button>
                 <Button 
@@ -236,7 +230,7 @@ export const Personnel: React.FC = () => {
                   size="sm"
                   onClick={() => handleToggleActif(person.id)}
                 >
-                  {person.actif ? <EyeOff size={14} /> : <Eye size={14} />}
+                  {person.actif ? 'Désactiver' : 'Activer'}
                 </Button>
               </div>
             </Card>
@@ -253,6 +247,13 @@ export const Personnel: React.FC = () => {
           </p>
         </Card>
       )}
+
+      {/* Modal */}
+      <PersonnelFormModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        personnelToEdit={personnelToEdit}
+      />
     </div>
   );
 };
