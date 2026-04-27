@@ -3,7 +3,8 @@ import { useAppState, Besoin } from '@/store/AppContext';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Clock, Filter, AlertCircle, CheckCircle, Plus, Download } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { MapPin, Clock, Filter, AlertCircle, CheckCircle, Plus, Download, Search, X } from 'lucide-react';
 import { AffecterPersonnelModal } from '@/components/AffecterPersonnelModal';
 import { BesoinFormModal } from '@/components/BesoinFormModal';
 
@@ -29,13 +30,23 @@ export const Besoins: React.FC = () => {
   const { state, dispatch } = useAppState();
   const { besoins, personnel } = state;
   const [filter, setFilter] = useState<'all' | 'non-couvert' | 'partiel' | 'complete'>('all');
+  const [searchService, setSearchService] = useState('');
+  const [selectedService, setSelectedService] = useState<string>('all');
   const [selectedBesoin, setSelectedBesoin] = useState<Besoin | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [formModalOpen, setFormModalOpen] = useState(false);
 
+  // Liste des services uniques
+  const services = [...new Set(besoins.map(b => b.service))].sort();
+
   const filteredBesoins = besoins.filter(b => {
-    if (filter === 'all') return true;
-    return b.statut === filter;
+    // Filtre par statut
+    if (filter !== 'all' && b.statut !== filter) return false;
+    // Filtre par service
+    if (selectedService !== 'all' && b.service !== selectedService) return false;
+    // Recherche textuelle
+    if (searchService && !b.service.toLowerCase().includes(searchService.toLowerCase())) return false;
+    return true;
   });
 
   const stats = {
@@ -75,6 +86,14 @@ export const Besoins: React.FC = () => {
       dispatch({ type: 'SET_BESOINS', payload: updatedBesoins });
     }
   };
+
+  const clearFilters = () => {
+    setFilter('all');
+    setSelectedService('all');
+    setSearchService('');
+  };
+
+  const hasActiveFilters = filter !== 'all' || selectedService !== 'all' || searchService !== '';
 
   return (
     <div className="p-4 md:p-8">
@@ -127,16 +146,61 @@ export const Besoins: React.FC = () => {
         </Card>
       </div>
 
-      {/* Filtre actif */}
-      {filter !== 'all' && (
-        <div className="flex items-center gap-2 mb-4">
-          <Filter size={16} className="text-text-muted" />
-          <span className="text-sm text-text-muted">Filtré: </span>
-          <Badge variant="outline" className="cursor-pointer" onClick={() => setFilter('all')}>
-            {statutConfig[filter].label} ×
-          </Badge>
+      {/* Filtres */}
+      <Card className="p-4 bg-surface border-border rounded-xl mb-6">
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Recherche */}
+          <div className="relative flex-1">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+            <Input
+              type="text"
+              placeholder="Rechercher un service..."
+              value={searchService}
+              onChange={(e) => setSearchService(e.target.value)}
+              className="pl-10 bg-bg border-border"
+            />
+          </div>
+          
+          {/* Filtre par service */}
+          <select
+            value={selectedService}
+            onChange={(e) => setSelectedService(e.target.value)}
+            className="px-3 py-2 bg-bg border border-border rounded-lg text-text-main text-sm"
+          >
+            <option value="all">Tous les services</option>
+            {services.map(service => (
+              <option key={service} value={service}>{service}</option>
+            ))}
+          </select>
         </div>
-      )}
+        
+        {/* Filtre actif */}
+        {hasActiveFilters && (
+          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
+            <Filter size={16} className="text-text-muted" />
+            <span className="text-sm text-text-muted">Filtres actifs: </span>
+            {filter !== 'all' && (
+              <Badge variant="outline" className="cursor-pointer" onClick={() => setFilter('all')}>
+                {statutConfig[filter].label} ×
+              </Badge>
+            )}
+            {selectedService !== 'all' && (
+              <Badge variant="outline" className="cursor-pointer" onClick={() => setSelectedService('all')}>
+                {selectedService} ×
+              </Badge>
+            )}
+            {searchService && (
+              <Badge variant="outline" className="cursor-pointer" onClick={() => setSearchService('')}>
+                "{searchService}" ×
+              </Badge>
+            )}
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="ml-auto">
+              <X size={14} className="mr-1" />
+              Effacer
+            </Button>
+          </div>
+        )}
+      </Card>
 
       {/* Liste des besoins */}
       {filteredBesoins.length > 0 ? (
@@ -219,11 +283,16 @@ export const Besoins: React.FC = () => {
           </div>
           <h3 className="text-lg font-semibold text-text-main mb-2">Aucun besoin</h3>
           <p className="text-text-muted mb-4">
-            {filter !== 'all' 
-              ? 'Aucun besoin ne correspond à ce filtre.' 
+            {hasActiveFilters 
+              ? 'Aucun besoin ne correspond à vos filtres.' 
               : 'Aucun besoin n\'a été créé pour cette date.'}
           </p>
-          {filter === 'all' && (
+          {hasActiveFilters ? (
+            <Button onClick={clearFilters} variant="outline">
+              <X size={16} className="mr-1" />
+              Effacer les filtres
+            </Button>
+          ) : (
             <Button 
               onClick={() => setFormModalOpen(true)} 
               className="bg-accent hover:bg-accent/90"

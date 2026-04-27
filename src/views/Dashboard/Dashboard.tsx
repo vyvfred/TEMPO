@@ -1,7 +1,9 @@
 import React from 'react';
 import { useAppState } from '@/store/AppContext';
-import { Users, Truck, CalendarCheck, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Users, Truck, CalendarCheck, AlertTriangle, TrendingUp } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 interface KPICardProps {
   title: string;
@@ -49,8 +51,37 @@ export const Dashboard: React.FC = () => {
   // Besoins critiques (non couverts)
   const besoinsCritiques = besoinsDuJour.filter(b => b.statut === 'non-couvert');
 
+  // Données pour le graphique en barres (besoins par service)
+  const servicesData = besoinsDuJour.reduce((acc, besoin) => {
+    const existing = acc.find(a => a.name === besoin.service);
+    if (existing) {
+      existing.value += besoin.personnelRequis;
+    } else {
+      acc.push({ name: besoin.service, value: besoin.personnelRequis });
+    }
+    return acc;
+  }, [] as { name: string; value: number }[]);
+
+  // Données pour le camembert (statuts)
+  const statutData = [
+    { name: 'Complets', value: besoinsComplets, color: '#10b981' },
+    { name: 'Partiels', value: besoinsPartiels, color: '#f59e0b' },
+    { name: 'Non couverts', value: besoinsNonCouverts, color: '#ef4444' },
+  ].filter(d => d.value > 0);
+
+  // Données par quart
+  const quartData = ['matin', 'apres-midi', 'nuit'].map(quart => {
+    const besoinsQuart = besoinsDuJour.filter(b => b.quart === quart);
+    const labels = { matin: 'Matin', 'apres-midi': 'A-Midi', nuit: 'Nuit' };
+    return {
+      name: labels[quart as keyof typeof labels],
+      besoins: besoinsQuart.length,
+      couverts: besoinsQuart.filter(b => b.statut === 'complete').length,
+    };
+  });
+
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-text-main">Tableau de bord</h2>
         <p className="text-text-muted mt-1">
@@ -94,6 +125,81 @@ export const Dashboard: React.FC = () => {
         />
       </div>
 
+      {/* Graphiques */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Graphique en barres - Besoins par service */}
+        <Card className="p-6 bg-surface border-border rounded-xl">
+          <h3 className="text-lg font-bold text-text-main mb-4">Besoins par Service</h3>
+          {servicesData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={servicesData}>
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Bar dataKey="value" fill="#0f766e" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[250px] flex items-center justify-center text-text-muted">
+              Aucune donnée disponible
+            </div>
+          )}
+        </Card>
+
+        {/* Camembert - Statuts des besoins */}
+        <Card className="p-6 bg-surface border-border rounded-xl">
+          <h3 className="text-lg font-bold text-text-main mb-4">Statut des Besoins</h3>
+          {statutData.length > 0 ? (
+            <div className="flex items-center justify-center">
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={statutData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {statutData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-[250px] flex items-center justify-center text-text-muted">
+              Aucune donnée disponible
+            </div>
+          )}
+          <div className="flex justify-center gap-4 mt-4">
+            {statutData.map((statut, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: statut.color }} />
+                <span className="text-sm text-text-muted">{statut.name}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Graphique par quart */}
+      <Card className="p-6 bg-surface border-border rounded-xl mb-8">
+        <h3 className="text-lg font-bold text-text-main mb-4">Répartition par Quart</h3>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={quartData}>
+            <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+            <YAxis tick={{ fontSize: 12 }} />
+            <Tooltip />
+            <Bar dataKey="besoins" name="Total besoins" fill="#0f766e" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="couverts" name="Couverts" fill="#10b981" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+
       {/* Section des alertes */}
       {besoinsCritiques.length > 0 && (
         <Card className="p-6 bg-red-50 border-danger rounded-xl mb-8">
@@ -119,7 +225,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Résumé par quart */}
       <Card className="p-6 bg-surface border-border rounded-xl">
-        <h3 className="text-lg font-bold text-text-main mb-4">Répartition par Quart</h3>
+        <h3 className="text-lg font-bold text-text-main mb-4">Vue d'ensemble</h3>
         <div className="grid grid-cols-3 gap-4">
           {['matin', 'apres-midi', 'nuit'].map(quart => {
             const besoinsQuart = besoinsDuJour.filter(b => b.quart === quart);

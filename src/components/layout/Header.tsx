@@ -1,16 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useAppState } from '@/store/AppContext';
-import { UserCircle, Bell, Settings, Activity, ChevronLeft, ChevronRight, Calendar, Sun, Moon, Keyboard } from 'lucide-react';
+import { UserCircle, Bell, Settings, Activity, ChevronLeft, ChevronRight, Calendar, Sun, Moon, Keyboard, X, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+
+interface Notification {
+  id: string;
+  type: 'success' | 'warning' | 'error';
+  message: string;
+  timestamp: Date;
+}
 
 export const Header: React.FC = () => {
   const { state, dispatch } = useAppState();
   const [isDark, setIsDark] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + Arrow for date navigation
       if ((e.ctrlKey || e.metaKey) && e.key === 'ArrowLeft') {
         e.preventDefault();
         handleDateChange(-1);
@@ -19,12 +29,10 @@ export const Header: React.FC = () => {
         e.preventDefault();
         handleDateChange(1);
       }
-      // Ctrl/Cmd + T for today
       if ((e.ctrlKey || e.metaKey) && e.key === 't') {
         e.preventDefault();
         handleToday();
       }
-      // ? for shortcuts help
       if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
         setShowShortcuts(prev => !prev);
       }
@@ -33,6 +41,45 @@ export const Header: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Generate notifications from current state
+  useEffect(() => {
+    const today = state.selectedDate;
+    const besoinsDuJour = state.besoins.filter(b => b.date === today);
+    const nonCouverts = besoinsDuJour.filter(b => b.statut === 'non-couvert');
+    const partiels = besoinsDuJour.filter(b => b.statut === 'partiel');
+    
+    const newNotifications: Notification[] = [];
+    
+    if (nonCouverts.length > 0) {
+      newNotifications.push({
+        id: 'non-couverts',
+        type: 'error',
+        message: `${nonCouverts.length} besoin${nonCouverts.length > 1 ? 's' : ''} non couvert${nonCouverts.length > 1 ? 's' : ''}`,
+        timestamp: new Date(),
+      });
+    }
+    
+    if (partiels.length > 0) {
+      newNotifications.push({
+        id: 'partiels',
+        type: 'warning',
+        message: `${partiels.length} besoin${partiels.length > 1 ? 's' : ''} partiellement couvert${partiels.length > 1 ? 's' : ''}`,
+        timestamp: new Date(),
+      });
+    }
+    
+    if (nonCouverts.length === 0 && partiels.length === 0 && besoinsDuJour.length > 0) {
+      newNotifications.push({
+        id: 'all-covered',
+        type: 'success',
+        message: 'Tous les besoins sont couverts !',
+        timestamp: new Date(),
+      });
+    }
+    
+    setNotifications(newNotifications);
+  }, [state.besoins, state.selectedDate]);
 
   const handleDateChange = (days: number) => {
     const currentDate = new Date(state.selectedDate);
@@ -48,6 +95,8 @@ export const Header: React.FC = () => {
     setIsDark(!isDark);
     document.documentElement.classList.toggle('dark');
   };
+
+  const unreadCount = notifications.filter(n => n.type !== 'success').length;
 
   return (
     <>
@@ -110,9 +159,16 @@ export const Header: React.FC = () => {
           >
             <Keyboard size={20}/>
           </button>
-          <button className="p-2 hover:bg-bg rounded-full transition-colors relative">
+          <button 
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="p-2 hover:bg-bg rounded-full transition-colors relative"
+          >
             <Bell size={20}/>
-            <span className="absolute top-1 right-1 w-2 h-2 bg-danger rounded-full"></span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-danger text-white text-xs rounded-full flex items-center justify-center font-bold">
+                {unreadCount}
+              </span>
+            )}
           </button>
           <button className="p-2 hover:bg-bg rounded-full transition-colors">
             <Settings size={20}/>
@@ -127,6 +183,36 @@ export const Header: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* Notifications Panel */}
+      {showNotifications && (
+        <div className="fixed top-16 right-4 w-80 bg-surface border border-border rounded-xl shadow-xl z-50">
+          <div className="flex items-center justify-between p-4 border-b border-border">
+            <h3 className="font-semibold text-text-main">Notifications</h3>
+            <button onClick={() => setShowNotifications(false)} className="p-1 hover:bg-bg rounded">
+              <X size={16} className="text-text-muted" />
+            </button>
+          </div>
+          <div className="max-h-80 overflow-y-auto">
+            {notifications.length > 0 ? (
+              notifications.map(notif => (
+                <div key={notif.id} className={`p-4 border-b border-border last:border-0 flex items-start gap-3 ${
+                  notif.type === 'error' ? 'bg-red-50' : notif.type === 'warning' ? 'bg-yellow-50' : 'bg-green-50'
+                }`}>
+                  {notif.type === 'error' && <AlertTriangle size={18} className="text-danger" />}
+                  {notif.type === 'warning' && <AlertTriangle size={18} className="text-warning" />}
+                  {notif.type === 'success' && <CheckCircle size={18} className="text-success" />}
+                  <p className="text-sm text-text-main">{notif.message}</p>
+                </div>
+              ))
+            ) : (
+              <div className="p-8 text-center text-text-muted">
+                <p>Aucune notification</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Shortcuts Modal */}
       {showShortcuts && (
