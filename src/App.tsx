@@ -5,6 +5,7 @@ import { Sidebar } from './components/layout/Sidebar';
 import { Dashboard } from './views/Dashboard/Dashboard';
 import { Planning } from './views/Planning/Planning';
 import { Personnel } from './views/Personnel/Personnel';
+import { Besoins } from './views/Besoins/Besoins';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -21,8 +22,8 @@ const AppContent: React.FC = () => {
         <Route path="/" element={<Dashboard />} />
         <Route path="/planning" element={<Planning />} />
         <Route path="/personnel" element={<Personnel />} />
+        <Route path="/besoins" element={<Besoins />} />
         <Route path="/parametres" element={<div className="p-8"><h2 className="text-2xl font-bold text-text-main">Paramètres</h2><p className="text-text-muted mt-1">Configuration de l'application</p></div>} />
-        <Route path="/besoins" element={<div className="p-8"><h2 className="text-2xl font-bold text-text-main">Besoins</h2><p className="text-text-muted mt-1">Gestion des besoins journaliers</p></div>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
