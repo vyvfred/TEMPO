@@ -43,9 +43,10 @@ type AppAction =
   | { type: 'SET_DATE'; payload: string }
   | { type: 'SET_PERSONNEL'; payload: Personnel[] }
   | { type: 'SET_BESOINS'; payload: Besoin[] }
-  | { type: 'AFFECTER_PERSONNEL'; payload: { besoinId: string; personnelId: string } };
+  | { type: 'AFFECTER_PERSONNEL'; payload: { besoinId: string; personnelId: string } }
+  | { type: 'DESAFFECTER_PERSONNEL'; payload: { besoinId: string; personnelId: string } }
+  | { type: 'LOAD_FROM_STORAGE'; payload: Partial<AppState> };
 
-// Données initiales
 const initialState: AppState = {
   currentAgence: { id: 'sgxv', nom: 'Agence SGXV', code: 'SGXV' },
   personnel: [],
@@ -53,6 +54,14 @@ const initialState: AppState = {
   selectedDate: new Date().toISOString().split('T')[0],
   user: { nom: 'Dupont', prenom: 'Jean', role: 'Régulateur' },
 };
+
+// Calcul du statut d'un besoin
+function calculateStatut(besoin: Besoin): Besoin['statut'] {
+  const count = besoin.personnelAffecte.length;
+  if (count === 0) return 'non-couvert';
+  if (count < besoin.personnelRequis) return 'partiel';
+  return 'complete';
+}
 
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -62,15 +71,50 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, personnel: action.payload };
     case 'SET_BESOINS':
       return { ...state, besoins: action.payload };
-    case 'AFFECTER_PERSONNEL':
+    case 'AFFECTER_PERSONNEL': {
+      const { besoinId, personnelId } = action.payload;
       return {
         ...state,
-        besoins: state.besoins.map(b =>
-          b.id === action.payload.besoinId
-            ? { ...b, personnelAffecte: [...b.personnelAffecte, action.payload.personnelId] }
-            : b
-        ),
+        besoins: state.besoins.map(b => {
+          if (b.id !== besoinId) return b;
+          const newAffecte = [...b.personnelAffecte, personnelId];
+          return {
+            ...b,
+            personnelAffecte: newAffecte,
+            statut: calculateStatut({ ...b, personnelAffecte: newAffecte })
+          };
+        }),
+        personnel: state.personnel.map(p => {
+          if (p.id !== personnelId) return p;
+          return { ...p, statut: 'en-poste' as const };
+        }),
       };
+    }
+    case 'DESAFFECTER_PERSONNEL': {
+      const { besoinId, personnelId } = action.payload;
+      return {
+        ...state,
+        besoins: state.besoins.map(b => {
+          if (b.id !== besoinId) return b;
+          const newAffecte = b.personnelAffecte.filter(id => id !== personnelId);
+          return {
+            ...b,
+            personnelAffecte: newAffecte,
+            statut: calculateStatut({ ...b, personnelAffecte: newAffecte })
+          };
+        }),
+        personnel: state.personnel.map(p => {
+          if (p.id !== personnelId) return p;
+          // Vérifier si le personnel a d'autres affectations
+          const hasOtherAffectation = state.besoins.some(
+            b => b.id !== besoinId && b.personnelAffecte.includes(personnelId)
+          );
+          return { ...p, statut: hasOtherAffectation ? 'en-poste' as const : 'disponible' as const };
+        }),
+      };
+    }
+    case 'LOAD_FROM_STORAGE':
+      return { ...state, ...action.payload };
     default:
       return state;
   }
@@ -84,8 +128,33 @@ const AppContext = createContext<{
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Chargement initial des données mockées
+  // Chargement initial des données mockées ou depuis localStorage
   useEffect(() => {
+    const storedData = localStorage.getItem('ambuplan_data');
+    if (storedData) {
+      try {
+        const parsed = JSON.parse(storedData);
+        dispatch({ type: 'LOAD_FROM_STORAGE', payload: parsed });
+      } catch {
+        loadMockData();
+      }
+    } else {
+      loadMockData();
+    }
+  }, []);
+
+  // Sauvegarde dans localStorage à chaque changement
+  useEffect(() => {
+    if (state.personnel.length > 0 || state.besoins.length > 0) {
+      localStorage.setItem('ambuplan_data', JSON.stringify({
+        personnel: state.personnel,
+        besoins: state.besoins,
+        selectedDate: state.selectedDate,
+      }));
+    }
+  }, [state.personnel, state.besoins, state.selectedDate]);
+
+  function loadMockData() {
     const mockPersonnel: Personnel[] = [
       { id: 'p1', nom: 'Martin', prenom: 'Sophie', qualification: 'Ambulancière DE', statut: 'disponible' },
       { id: 'p2', nom: 'Bernard', prenom: 'Pierre', qualification: 'Ambulancier DE', statut: 'en-poste' },
@@ -113,7 +182,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     dispatch({ type: 'SET_PERSONNEL', payload: mockPersonnel });
     dispatch({ type: 'SET_BESOINS', payload: mockBesoins });
-  }, []);
+  }
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>

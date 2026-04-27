@@ -1,7 +1,9 @@
-import React from 'react';
-import { useAppState } from '@/store/AppContext';
-import { Clock, AlertCircle, CheckCircle, MapPin } from 'lucide-react';
+import React, { useState } from 'react';
+import { useAppState, Besoin } from '@/store/AppContext';
+import { Clock, AlertCircle, CheckCircle, MapPin, Plus } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { AffecterPersonnelModal } from '@/components/AffecterPersonnelModal';
 
 const quartLabels = {
   'matin': 'Matin (06h-14h)',
@@ -18,6 +20,8 @@ const statutConfig = {
 export const Planning: React.FC = () => {
   const { state } = useAppState();
   const { besoins, personnel } = state;
+  const [selectedBesoin, setSelectedBesoin] = useState<Besoin | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const filteredBesoins = besoins.filter(b => b.date === state.selectedDate);
   const groupedByQuart = filteredBesoins.reduce((acc, besoin) => {
@@ -27,6 +31,11 @@ export const Planning: React.FC = () => {
   }, {} as Record<string, typeof filteredBesoins>);
 
   const availablePersonnel = personnel.filter(p => p.statut === 'disponible');
+
+  const handleOpenModal = (besoin: Besoin) => {
+    setSelectedBesoin(besoin);
+    setModalOpen(true);
+  };
 
   return (
     <div className="p-8">
@@ -100,6 +109,16 @@ export const Planning: React.FC = () => {
                       </div>
                     </div>
                   )}
+                  
+                  <Button
+                    onClick={() => handleOpenModal(besoin)}
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-3 border-accent text-accent hover:bg-accent hover:text-white"
+                  >
+                    <Plus size={14} className="mr-1" />
+                    Affecter
+                  </Button>
                 </Card>
               );
             })}
@@ -112,6 +131,13 @@ export const Planning: React.FC = () => {
           <p>Aucun besoin enregistré pour cette date.</p>
         </div>
       )}
+
+      {/* Modal d'affectation */}
+      <AffecterPersonnelModal
+        besoin={selectedBesoin}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+      />
     </div>
   );
 };

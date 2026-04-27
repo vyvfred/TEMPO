@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useAppState, Besoin } from '@/store/AppContext';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Clock, Users, Filter, AlertCircle, CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { MapPin, Clock, Users, Filter, AlertCircle, CheckCircle, Plus, UserMinus } from 'lucide-react';
+import { AffecterPersonnelModal } from '@/components/AffecterPersonnelModal';
 
 const quartLabels = {
   'matin': 'Matin (06h-14h)',
@@ -26,6 +28,8 @@ export const Besoins: React.FC = () => {
   const { state } = useAppState();
   const { besoins, personnel } = state;
   const [filter, setFilter] = useState<'all' | 'non-couvert' | 'partiel' | 'complete'>('all');
+  const [selectedBesoin, setSelectedBesoin] = useState<Besoin | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   const filteredBesoins = besoins.filter(b => {
     if (filter === 'all') return true;
@@ -37,6 +41,11 @@ export const Besoins: React.FC = () => {
     complete: besoins.filter(b => b.statut === 'complete').length,
     partiel: besoins.filter(b => b.statut === 'partiel').length,
     nonCouvert: besoins.filter(b => b.statut === 'non-couvert').length,
+  };
+
+  const handleOpenModal = (besoin: Besoin) => {
+    setSelectedBesoin(besoin);
+    setModalOpen(true);
   };
 
   return (
@@ -111,7 +120,7 @@ export const Besoins: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4">
                   <div className="text-center">
                     <p className="text-2xl font-bold text-text-main">{besoin.personnelAffecte.length}/{besoin.personnelRequis}</p>
                     <p className="text-xs text-text-muted">affectés/requis</p>
@@ -129,6 +138,14 @@ export const Besoins: React.FC = () => {
                       })}
                     </div>
                   )}
+                  
+                  <Button
+                    onClick={() => handleOpenModal(besoin)}
+                    className="bg-accent hover:bg-accent/90"
+                  >
+                    <Plus size={16} className="mr-1" />
+                    Affecter
+                  </Button>
                 </div>
               </div>
             </Card>
@@ -141,6 +158,13 @@ export const Besoins: React.FC = () => {
           <p>Aucun besoin ne correspond à ce filtre.</p>
         </div>
       )}
+
+      {/* Modal d'affectation */}
+      <AffecterPersonnelModal
+        besoin={selectedBesoin}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+      />
     </div>
   );
 };
