@@ -8,6 +8,7 @@ import {
   Briefcase, Calendar, Plus, Search, X, Clock, Users,
   Edit, Trash2
 } from 'lucide-react';
+import { TacheFormModal } from '@/components/TacheFormModal';
 import { toast } from 'sonner';
 
 const typeConfig = {
@@ -30,6 +31,8 @@ export const Taches: React.FC = () => {
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatut, setFilterStatut] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [tacheToEdit, setTacheToEdit] = useState<Tache | null>(null);
 
   const filteredTaches = taches.filter(t => {
     if (filterType !== 'all' && t.type !== filterType) return false;
@@ -43,6 +46,11 @@ export const Taches: React.FC = () => {
     planifie: taches.filter(t => t.statut === 'planifie').length,
     enCours: taches.filter(t => t.statut === 'en-cours').length,
     termine: taches.filter(t => t.statut === 'termine').length,
+  };
+
+  const handleOpenModal = (tache?: Tache) => {
+    setTacheToEdit(tache || null);
+    setModalOpen(true);
   };
 
   const handleDelete = (id: string) => {
@@ -60,7 +68,7 @@ export const Taches: React.FC = () => {
           <h2 className="text-2xl font-bold text-text-main">Tâches non roulantes</h2>
           <p className="text-text-muted mt-1">{stats.total} tâches au total</p>
         </div>
-        <Button className="bg-accent hover:bg-accent/90">
+        <Button onClick={() => handleOpenModal()} className="bg-accent hover:bg-accent/90">
           <Plus size={16} className="mr-1" />
           Nouvelle tâche
         </Button>
@@ -180,7 +188,7 @@ export const Taches: React.FC = () => {
                 )}
                 
                 <div className="flex gap-2 mt-4">
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenModal(tache)}>
                     <Edit size={14} className="mr-1" />
                     Modifier
                   </Button>
@@ -204,6 +212,13 @@ export const Taches: React.FC = () => {
           <p className="text-text-muted">Modifiez vos filtres ou créez une nouvelle tâche.</p>
         </Card>
       )}
+
+      {/* Modal */}
+      <TacheFormModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        tacheToEdit={tacheToEdit}
+      />
     </div>
   );
 };

@@ -8,6 +8,7 @@ import {
   Calendar, MapPin, Plus, Search, X, Users, Clock, 
   Edit, Trash2, Eye, Filter, Download
 } from 'lucide-react';
+import { ActiviteFormModal } from '@/components/ActiviteFormModal';
 import { toast } from 'sonner';
 
 const typeConfig = {
@@ -29,6 +30,8 @@ export const Activites: React.FC = () => {
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatut, setFilterStatut] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [activiteToEdit, setActiviteToEdit] = useState<Activite | null>(null);
 
   const filteredActivites = activites.filter(a => {
     if (filterType !== 'all' && a.type !== filterType) return false;
@@ -42,6 +45,11 @@ export const Activites: React.FC = () => {
     uph: activites.filter(a => a.type === 'UPH').length,
     manifestations: activites.filter(a => a.type === 'manifestation').length,
     permanences: activites.filter(a => a.type === 'permanence').length,
+  };
+
+  const handleOpenModal = (activite?: Activite) => {
+    setActiviteToEdit(activite || null);
+    setModalOpen(true);
   };
 
   const handleDelete = (id: string) => {
@@ -59,7 +67,7 @@ export const Activites: React.FC = () => {
           <h2 className="text-2xl font-bold text-text-main">Activités planifiées</h2>
           <p className="text-text-muted mt-1">{stats.total} activités au total</p>
         </div>
-        <Button className="bg-accent hover:bg-accent/90">
+        <Button onClick={() => handleOpenModal()} className="bg-accent hover:bg-accent/90">
           <Plus size={16} className="mr-1" />
           Nouvelle activité
         </Button>
@@ -183,7 +191,7 @@ export const Activites: React.FC = () => {
                 </div>
                 
                 <div className="flex gap-2 mt-4">
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenModal(activite)}>
                     <Edit size={14} className="mr-1" />
                     Modifier
                   </Button>
@@ -207,6 +215,13 @@ export const Activites: React.FC = () => {
           <p className="text-text-muted">Modifiez vos filtres ou créez une nouvelle activité.</p>
         </Card>
       )}
+
+      {/* Modal */}
+      <ActiviteFormModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        activiteToEdit={activiteToEdit}
+      />
     </div>
   );
 };

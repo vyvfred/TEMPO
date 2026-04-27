@@ -8,6 +8,7 @@ import {
   Calendar, Plus, Search, X, Clock, User, 
   Edit, Trash2, Plane, BookOpen, Heart, Stethoscope
 } from 'lucide-react';
+import { AbsenceFormModal } from '@/components/AbsenceFormModal';
 import { toast } from 'sonner';
 
 const typeConfig = {
@@ -31,6 +32,7 @@ export const Absences: React.FC = () => {
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatut, setFilterStatut] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
 
   const filteredAbsences = absences.filter(a => {
     if (filterType !== 'all' && a.type !== filterType) return false;
@@ -86,7 +88,7 @@ export const Absences: React.FC = () => {
           <h2 className="text-2xl font-bold text-text-main">Gestion des Absences</h2>
           <p className="text-text-muted mt-1">{stats.total} absences au total</p>
         </div>
-        <Button className="bg-accent hover:bg-accent/90">
+        <Button onClick={() => setModalOpen(true)} className="bg-accent hover:bg-accent/90">
           <Plus size={16} className="mr-1" />
           Nouvelle absence
         </Button>
@@ -247,6 +249,12 @@ export const Absences: React.FC = () => {
           <p className="text-text-muted">Modifiez vos filtres ou déclarez une nouvelle absence.</p>
         </Card>
       )}
+
+      {/* Modal */}
+      <AbsenceFormModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+      />
     </div>
   );
 };
