@@ -3,7 +3,8 @@ import { NavLink } from 'react-router-dom';
 import { 
   Home, LayoutDashboard, Calendar, Users, ClipboardList, 
   Activity, Briefcase, FileText, Settings, ChevronDown, 
-  MapPin, Clock, Award, AlertTriangle, TrendingUp, CalendarDays
+  MapPin, Clock, Award, AlertTriangle, TrendingUp, CalendarDays,
+  Building2, Shield, Book, HelpCircle
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAppState } from '@/store/AppContext';
@@ -17,6 +18,12 @@ const navItems = [
   { to: '/activites', icon: Activity, label: 'Activités' },
   { to: '/taches', icon: Briefcase, label: 'Tâches' },
   { to: '/absences', icon: FileText, label: 'Absences' },
+];
+
+const secondaryNavItems = [
+  { to: '/agences', icon: Building2, label: 'Agences & Bureaux' },
+  { to: '/equite', icon: Shield, label: 'Équité & Préférences' },
+  { to: '/guide', icon: Book, label: 'Guide Utilisation' },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -109,6 +116,32 @@ export const Sidebar: React.FC = () => {
               <p className="text-2xl font-bold text-blue-600 mt-1">{enFormation}</p>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Secondary Navigation */}
+      <div className="pt-6 mt-6 border-t border-border">
+        <h4 className="px-3 text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
+          Outils
+        </h4>
+        
+        <div className="space-y-1">
+          {secondaryNavItems.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `px-3 py-2.5 flex items-center gap-3 font-medium rounded-lg transition-all ${
+                  isActive
+                    ? 'bg-accent/10 text-accent shadow-sm'
+                    : 'text-text-muted hover:bg-bg hover:text-text-main'
+                }`
+              }
+            >
+              <Icon size={20} />
+              <span className="flex-1">{label}</span>
+            </NavLink>
+          ))}
         </div>
       </div>
       
