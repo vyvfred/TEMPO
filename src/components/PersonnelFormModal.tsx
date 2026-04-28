@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppState, Personnel } from '@/store/AppContext';
 import {
   Dialog,
@@ -25,16 +25,44 @@ export const PersonnelFormModal: React.FC<PersonnelFormModalProps> = ({
 }) => {
   const { state, dispatch } = useAppState();
   
-  const [nom, setNom] = useState(personnelToEdit?.nom || '');
-  const [prenom, setPrenom] = useState(personnelToEdit?.prenom || '');
-  const [dateNaissance, setDateNaissance] = useState(personnelToEdit?.dateNaissance || '');
-  const [telephone, setTelephone] = useState(personnelToEdit?.telephone || '');
-  const [email, setEmail] = useState(personnelToEdit?.email || '');
-  const [qualificationId, setQualificationId] = useState(personnelToEdit?.qualificationId || state.qualifications[0]?.id || '');
-  const [bureauId, setBureauId] = useState(personnelToEdit?.bureauId || state.bureaux[0]?.id || '');
-  const [preferenciasNuit, setPreferenciasNuit] = useState(personnelToEdit?.preferenciasNuit || false);
-  const [preferenciasWE, setPreferenciasWE] = useState(personnelToEdit?.preferenciasWE || false);
-  const [restrictions, setRestrictions] = useState(personnelToEdit?.restrictions.join(', ') || '');
+  const [nom, setNom] = useState('');
+  const [prenom, setPrenom] = useState('');
+  const [dateNaissance, setDateNaissance] = useState('');
+  const [telephone, setTelephone] = useState('');
+  const [email, setEmail] = useState('');
+  const [qualificationId, setQualificationId] = useState('');
+  const [bureauId, setBureauId] = useState('');
+  const [preferenciasNuit, setPreferenciasNuit] = useState(false);
+  const [preferenciasWE, setPreferenciasWE] = useState(false);
+  const [restrictions, setRestrictions] = useState('');
+
+  // Synchroniser les états locaux avec personnelToEdit quand il change
+  useEffect(() => {
+    if (personnelToEdit) {
+      setNom(personnelToEdit.nom || '');
+      setPrenom(personnelToEdit.prenom || '');
+      setDateNaissance(personnelToEdit.dateNaissance || '');
+      setTelephone(personnelToEdit.telephone || '');
+      setEmail(personnelToEdit.email || '');
+      setQualificationId(personnelToEdit.qualificationId || state.qualifications[0]?.id || '');
+      setBureauId(personnelToEdit.bureauId || state.bureaux[0]?.id || '');
+      setPreferenciasNuit(personnelToEdit.preferenciasNuit || false);
+      setPreferenciasWE(personnelToEdit.preferenciasWE || false);
+      setRestrictions(personnelToEdit.restrictions.join(', ') || '');
+    } else {
+      // Reset pour un nouveau personnel
+      setNom('');
+      setPrenom('');
+      setDateNaissance('');
+      setTelephone('');
+      setEmail('');
+      setQualificationId(state.qualifications[0]?.id || '');
+      setBureauId(state.bureaux[0]?.id || '');
+      setPreferenciasNuit(false);
+      setPreferenciasWE(false);
+      setRestrictions('');
+    }
+  }, [personnelToEdit, state.qualifications, state.bureaux]);
 
   const isEditing = !!personnelToEdit;
 
@@ -112,7 +140,7 @@ export const PersonnelFormModal: React.FC<PersonnelFormModalProps> = ({
           </DialogTitle>
           <DialogDescription>
             {isEditing 
-              ? `Modifier les informations de ${personnelToEdit.prenom} ${personnelToEdit.nom}` 
+              ? `Modifier les informations de ${personnelToEdit?.prenom} ${personnelToEdit?.nom}` 
               : 'Ajouter un nouveau membre au personnel'}
           </DialogDescription>
         </DialogHeader>
