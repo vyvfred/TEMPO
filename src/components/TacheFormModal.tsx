@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppState, Tache } from '@/store/AppContext';
 import {
   Dialog,
@@ -25,10 +25,26 @@ export const TacheFormModal: React.FC<TacheFormModalProps> = ({
 }) => {
   const { state, dispatch } = useAppState();
   
-  const [nom, setNom] = useState(tacheToEdit?.nom || '');
-  const [type, setType] = useState<Tache['type']>(tacheToEdit?.type || 'regulation');
-  const [duree, setDuree] = useState(tacheToEdit?.duree?.toString() || '4');
-  const [bureauId, setBureauId] = useState(tacheToEdit?.bureauId || state.bureaux[0]?.id || '');
+  const [nom, setNom] = useState('');
+  const [type, setType] = useState<Tache['type']>('regulation');
+  const [duree, setDuree] = useState('4');
+  const [bureauId, setBureauId] = useState('');
+
+  // Synchroniser les états locaux avec tacheToEdit quand il change
+  useEffect(() => {
+    if (tacheToEdit) {
+      setNom(tacheToEdit.nom || '');
+      setType(tacheToEdit.type || 'regulation');
+      setDuree(tacheToEdit.duree?.toString() || '4');
+      setBureauId(tacheToEdit.bureauId || state.bureaux[0]?.id || '');
+    } else {
+      // Reset pour une nouvelle tâche
+      setNom('');
+      setType('regulation');
+      setDuree('4');
+      setBureauId(state.bureaux[0]?.id || '');
+    }
+  }, [tacheToEdit, state.bureaux]);
 
   const isEditing = !!tacheToEdit;
 
@@ -90,7 +106,7 @@ export const TacheFormModal: React.FC<TacheFormModalProps> = ({
           </DialogTitle>
           <DialogDescription>
             {isEditing 
-              ? `Modifier "${tacheToEdit.nom}"` 
+              ? `Modifier "${tacheToEdit?.nom}"` 
               : 'Créer une nouvelle tâche non roulante'}
           </DialogDescription>
         </DialogHeader>
