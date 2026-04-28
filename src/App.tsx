@@ -10,7 +10,11 @@ import { Activites } from '@/views/Activites/Activites';
 import { Taches } from '@/views/Taches/Taches';
 import { Absences } from '@/views/Absences/Absences';
 import { Parametres } from '@/views/Parametres/Parametres';
+import { ParametresSolveur } from '@/views/Parametres/Solveur';
 import { MonthlyPlanner } from '@/views/Planning/MonthlyPlanner';
+import { Agences } from '@/views/Agences/Agences';
+import Equite from '@/views/Equite/Equite';
+import { Guide } from '@/views/Aide/Guide';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -28,12 +32,17 @@ const AppContent: React.FC = () => {
         <Route path="/" element={<Index />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/planning" element={<MonthlyPlanner />} />
+        <Route path="/planning-jour" element={<Planning />} />
         <Route path="/personnel" element={<PersonnelList />} />
         <Route path="/besoins" element={<Besoins />} />
         <Route path="/activites" element={<Activites />} />
         <Route path="/taches" element={<Taches />} />
         <Route path="/absences" element={<Absences />} />
         <Route path="/parametres" element={<Parametres />} />
+        <Route path="/parametres/solveur" element={<ParametresSolveur />} />
+        <Route path="/agences" element={<Agences />} />
+        <Route path="/equite" element={<Equite />} />
+        <Route path="/guide" element={<Guide />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
