@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppState, Besoin } from '@/store/AppContext';
 import {
   Dialog,
@@ -25,13 +25,35 @@ export const BesoinFormModal: React.FC<BesoinFormModalProps> = ({
 }) => {
   const { state, dispatch } = useAppState();
   
-  const [service, setService] = useState(besoinToEdit?.service || '');
-  const [typePoste, setTypePoste] = useState<Besoin['typePoste']>(besoinToEdit?.typePoste || 'ambulance');
-  const [quart, setQuart] = useState<Besoin['quart']>(besoinToEdit?.quart || 'matin');
-  const [personnelRequis, setPersonnelRequis] = useState(besoinToEdit?.personnelRequis?.toString() || '1');
-  const [recurrente, setRecurrente] = useState(besoinToEdit?.recurrente || false);
-  const [beneficiaire, setBeneficiaire] = useState(besoinToEdit?.beneficiaire || '');
-  const [bureauId, setBureauId] = useState(besoinToEdit?.bureauId || state.bureaux[0]?.id || '');
+  const [service, setService] = useState('');
+  const [typePoste, setTypePoste] = useState<Besoin['typePoste']>('ambulance');
+  const [quart, setQuart] = useState<Besoin['quart']>('matin');
+  const [personnelRequis, setPersonnelRequis] = useState('1');
+  const [recurrente, setRecurrente] = useState(false);
+  const [beneficiaire, setBeneficiaire] = useState('');
+  const [bureauId, setBureauId] = useState('');
+
+  // Synchroniser les états locaux avec besoinToEdit quand il change
+  useEffect(() => {
+    if (besoinToEdit) {
+      setService(besoinToEdit.service || '');
+      setTypePoste(besoinToEdit.typePoste || 'ambulance');
+      setQuart(besoinToEdit.quart || 'matin');
+      setPersonnelRequis(besoinToEdit.personnelRequis?.toString() || '1');
+      setRecurrente(besoinToEdit.recurrente || false);
+      setBeneficiaire(besoinToEdit.beneficiaire || '');
+      setBureauId(besoinToEdit.bureauId || state.bureaux[0]?.id || '');
+    } else {
+      // Reset pour un nouveau besoin
+      setService('');
+      setTypePoste('ambulance');
+      setQuart('matin');
+      setPersonnelRequis('1');
+      setRecurrente(false);
+      setBeneficiaire('');
+      setBureauId(state.bureaux[0]?.id || '');
+    }
+  }, [besoinToEdit, state.bureaux]);
 
   const isEditing = !!besoinToEdit;
 
@@ -101,7 +123,7 @@ export const BesoinFormModal: React.FC<BesoinFormModalProps> = ({
           </DialogTitle>
           <DialogDescription>
             {isEditing 
-              ? `Modifier le besoin pour ${besoinToEdit.service}` 
+              ? `Modifier le besoin pour ${besoinToEdit?.service}` 
               : 'Créer un nouveau besoin de personnel'}
           </DialogDescription>
         </DialogHeader>
