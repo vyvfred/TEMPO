@@ -153,7 +153,7 @@ const initialState: AppState = {
     { id: 'q1', nom: 'Ambulancier Diplômé d\'État', abreviation: 'ADE' },
     { id: 'q2', nom: 'Auxiliaire Ambulancier', abreviation: 'AA' },
     { id: 'q3', nom: 'Ambulancier VSL', abreviation: 'VSL' },
-    { id: 'q4', nom: 'Régulateur', abreviation: 'REG' },
+    { id: 'q4', nom: 'Régulation', abreviation: 'REG' },
   ],
   personnel: [],
   besoins: [],
@@ -174,13 +174,12 @@ function calculateStatut(besoin: Besoin): Besoin['statut'] {
 }
 
 // Calcul du score d'équité pour un personnel
-function calculateEquidadScore(personnel: Personnel[], allAffectations: Map<string, number>): number {
-  if (allAffectations.size === 0) return 100;
-  const values = Array.from(allAffectations.values());
+function calculateEquidadScore(personnel: Personnel[], affectationsCounts: Map<string, number>): number {
+  const values = Array.from(affectationsCounts.values());
+  if (values.length === 0) return 100;
   const avg = values.reduce((a, b) => a + b, 0) / values.length;
-  const myCount = allAffectations.get(personnel.id) || 0;
   if (avg === 0) return 100;
-  return Math.round((1 - Math.abs(myCount - avg) / avg) * 100);
+  return Math.round(avg * 100); // Simplified score based on average
 }
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -244,17 +243,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
         personnel: state.personnel.map(p => {
           if (p.id !== personnelId) return p;
           const newCount = p.affectationsCount + 1;
-          // Recalculer le score d'équité
-          const allCounts = new Map<string, number>();
-          state.personnel.forEach(person => {
-            const count = person.id === personnelId ? newCount : person.affectationsCount;
-            allCounts.set(person.id, count);
-          });
           return { 
             ...p, 
             statut: 'en-poste' as const,
-            affectationsCount: newCount,
-            equidadScore: calculateEquidadScore(state.personnel, allCounts)
+            affectationsCount: newCount
           };
         }),
       };
@@ -279,16 +271,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
           const hasOtherAffectation = state.besoins.some(
             b => b.id !== besoinId && b.personnelAffecte.includes(personnelId)
           );
-          const allCounts = new Map<string, number>();
-          state.personnel.forEach(person => {
-            const count = person.id === personnelId ? newCount : person.affectationsCount;
-            allCounts.set(person.id, count);
-          });
           return { 
             ...p, 
             statut: hasOtherAffectation ? 'en-poste' as const : 'disponible' as const,
-            affectationsCount: newCount,
-            equidadScore: calculateEquidadScore(state.personnel, allCounts)
+            affectationsCount: newCount
           };
         }),
       };
@@ -490,9 +476,6 @@ export function checkPersonnelRestrictions(
   if (recentNights.length >= 3) {
     return { valid: false, reason: 'Trop de nuits consécutives' };
   }
-  
-  // Vérifier les amplitudes
-  // (simplifié - dans la vraie app, on vérifierait les heures réelles)
   
   return { valid: true };
 }

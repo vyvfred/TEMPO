@@ -107,7 +107,7 @@ export const AffecterPersonnelModal: React.FC<AffecterPersonnelModalProps> = ({
                       </div>
                       <div>
                         <p className="font-medium text-text-main">{p.prenom} {p.nom}</p>
-                        <p className="text-xs text-text-muted">{p.qualification}</p>
+                        <p className="text-xs text-text-muted">{p.qualification.nom}</p>
                       </div>
                     </div>
                     <Button
@@ -141,7 +141,7 @@ export const AffecterPersonnelModal: React.FC<AffecterPersonnelModalProps> = ({
                       </div>
                       <div>
                         <p className="font-medium text-text-main">{p.prenom} {p.nom}</p>
-                        <p className="text-xs text-text-muted">{p.qualification}</p>
+                        <p className="text-xs text-text-muted">{p.qualification.nom}</p>
                       </div>
                     </div>
                     <Button

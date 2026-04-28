@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useAppState, Personnel } from '@/store/AppContext';
+import { useAppState } from '@/store/AppContext';
+import type { Personnel as PersonnelType } from '@/store/AppContext';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,7 @@ const statutConfig = {
   'formation': { color: 'bg-purple-100 text-purple-800', label: 'Formation' },
 };
 
-export const Personnel: React.FC = () => {
+export const PersonnelList: React.FC = () => {
   const { state, dispatch } = useAppState();
   const { personnel, bureaux, qualifications } = state;
   const [search, setSearch] = useState('');
@@ -27,7 +28,7 @@ export const Personnel: React.FC = () => {
   const [filterBureau, setFilterBureau] = useState<string>('all');
   const [showInactive, setShowInactive] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [personnelToEdit, setPersonnelToEdit] = useState<Personnel | null>(null);
+  const [personnelToEdit, setPersonnelToEdit] = useState<PersonnelType | null>(null);
 
   const filteredPersonnel = personnel.filter(p => {
     if (!showInactive && !p.actif) return false;
@@ -52,7 +53,7 @@ export const Personnel: React.FC = () => {
     autre: personnel.filter(p => p.statut !== 'disponible' && p.statut !== 'en-poste' && p.actif).length,
   };
 
-  const handleOpenModal = (person?: Personnel) => {
+  const handleOpenModal = (person?: PersonnelType) => {
     setPersonnelToEdit(person || null);
     setModalOpen(true);
   };
@@ -172,7 +173,7 @@ export const Personnel: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-text-muted mt-1">
                     <Award size={14} />
-                    <span>{person.qualification?.nom || person.qualification}</span>
+                    <span>{person.qualification?.nom}</span>
                   </div>
                 </div>
               </div>
@@ -257,3 +258,6 @@ export const Personnel: React.FC = () => {
     </div>
   );
 };
+
+// Export alias for backward compatibility
+export { PersonnelList as Personnel };

@@ -4,7 +4,7 @@ import { AppProvider } from './store/AppContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { Dashboard } from './views/Dashboard/Dashboard';
 import { Planning } from './views/Planning/Planning';
-import { Personnel } from '@/views/Personnel/Personnel';
+import { PersonnelList } from './views/Personnel/Personnel';
 import { Besoins } from '@/views/Besoins/Besoins';
 import { Activites } from '@/views/Activites/Activites';
 import { Taches } from '@/views/Taches/Taches';
@@ -28,7 +28,7 @@ const AppContent: React.FC = () => {
         <Route path="/" element={<Index />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/planning" element={<MonthlyPlanner />} />
-        <Route path="/personnel" element={<Personnel />} />
+        <Route path="/personnel" element={<PersonnelList />} />
         <Route path="/besoins" element={<Besoins />} />
         <Route path="/activites" element={<Activites />} />
         <Route path="/taches" element={<Taches />} />
