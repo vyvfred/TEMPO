@@ -48,18 +48,6 @@ export default function Index() {
             </Card>
           </Link>
 
-          <Link to="/carbon">
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-shadow cursor-pointer">
-              <CardHeader>
-                <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center mb-4">
-                  <Leaf className="w-6 h-6 text-green-600" />
-                </div>
-                <CardTitle>Empreinte Carbone</CardTitle>
-                <CardDescription>Calculateur d'émissions CO₂</CardDescription>
-              </CardHeader>
-            </Card>
-          </Link>
-
           <Link to="/besoins">
             <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-shadow cursor-pointer">
               <CardHeader>

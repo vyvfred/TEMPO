@@ -22,7 +22,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import NotFound from "./pages/NotFound";
 import Index from "./pages/Index";
-import CarbonCalculator from "./pages/Carbon";
 
 const queryClient = new QueryClient();
 
@@ -31,7 +30,6 @@ const AppContent: React.FC = () => {
     <AppLayout sidebar={<Sidebar />}>
       <Routes>
         <Route path="/" element={<Index />} />
-        <Route path="/carbon" element={<CarbonCalculator />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/planning" element={<MonthlyPlanner />} />
         <Route path="/planning-jour" element={<Planning />} />
