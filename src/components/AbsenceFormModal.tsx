@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useAppState, Absence, Personnel } from '@/store/AppContext';
+import React, { useState, useEffect } from 'react';
+import { useAppState, Absence } from '@/store/AppContext';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,13 @@ export const AbsenceFormModal: React.FC<AbsenceFormModalProps> = ({
   const [dateDebut, setDateDebut] = useState('');
   const [dateFin, setDateFin] = useState('');
   const [observations, setObservations] = useState('');
+
+  // Reset form when modal opens with no existing data
+  useEffect(() => {
+    if (open && !personnelId) {
+      resetForm();
+    }
+  }, [open]);
 
   const selectedPerson = personnel.find(p => p.id === personnelId);
 
