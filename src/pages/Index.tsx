@@ -1,393 +1,603 @@
-import { useNavigate } from 'react-router-dom';
-import { 
-  Building2, Users, Shield, Calendar, Activity, 
-  Briefcase, FileText, Settings, HelpCircle, AlertTriangle,
-  TrendingUp, CheckCircle, Clock, MapPin, Sun, Moon,
-  ChevronRight, Zap, Database, RefreshCw, Home
-} from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { useAppState } from '@/store/AppContext';
-import { toast } from 'sonner';
+import { Separator } from '@/components/ui/separator';
+import { ChartContainer, ChartConfig, ChartTooltip } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
+import { Download, Calculator, Zap, Route, Leaf, TrendingDown, Info, Car, Fuel, ZapIcon, LeafIcon } from 'lucide-react';
 
-const Index = () => {
-  const navigate = useNavigate();
-  const { state, dispatch } = useAppState();
+// Emission factors based on ADEME Base Carbone
+const FACTORS_M1 = {
+  vslDiesel: 0.16,    // kg CO2e per km
+  vslElec: 0.02,       // kg CO2e per km
+  vslHybride: 0.10,    // kg CO2e per km
+  vslColza: 0.06,      // kg CO2e per km
+  ambuDiesel: 0.22,    // kg CO2e per km
+};
+
+const FACTORS_M3 = {
+  dieselLiters: 3.16,  // kg CO2e per liter
+  colzaLiters: 1.05,    // kg CO2e per liter
+  elecKwh: 0.06,        // kg CO2e per kWh
+};
+
+const MONTHS = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+];
+
+interface EmissionData {
+  label: string;
+  value: number;
+  color: string;
+}
+
+export default function CarbonCalculator() {
+  const currentYear = new Date().getFullYear();
   
-  const today = state.selectedDate;
-  const besoinsDuJour = state.besoins.filter(b => b.date === today);
-  const activitiesDuJour = state.activites.filter(a => a.date === today);
-  
-  const besoinsComplets = besoinsDuJour.filter(b => b.statut === 'complete').length;
-  const besoinsNonCouverts = besoinsDuJour.filter(b => b.statut === 'non-couvert').length;
-  const disponibles = state.personnel.filter(p => p.statut === 'disponible').length;
-  const enFormation = state.personnel.filter(p => p.statut === 'formation').length;
+  // Period selection
+  const [startMonth, setStartMonth] = useState('Janvier');
+  const [startYear, setStartYear] = useState(currentYear.toString());
+  const [endMonth, setEndMonth] = useState(MONTHS[new Date().getMonth()]);
+  const [endYear, setEndYear] = useState(currentYear.toString());
 
-  // Module zones
-  const zones = [
-    {
-      id: 'ressources',
-      title: 'Ressources',
-      icon: Users,
-      color: 'from-blue-500 to-blue-600',
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200',
-      modules: [
-        { path: '/agences', icon: Building2, label: 'Agences & Bureaux', description: 'Multi-agences, sites' },
-        { path: '/personnel', icon: Users, label: 'Personnel', description: 'Fiches salariés' },
-        { path: '/equite', icon: Shield, label: 'Équité & Préférences', description: 'Score, appétences' },
-        { path: '/absences', icon: Calendar, label: 'Absences & Congés', description: 'CP, RTT, Maladie' },
-      ]
-    },
-    {
-      id: 'besoins',
-      title: 'Besoins',
-      icon: Activity,
-      color: 'from-green-500 to-green-600',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
-      modules: [
-        { path: '/besoins', icon: Activity, label: 'Besoins Standards', description: 'Trames, roulement' },
-        { path: '/activites', icon: Zap, label: 'Activités Ponctuelles', description: 'UPH, Manifestations' },
-        { path: '/taches', icon: Briefcase, label: 'Tâches Internes', description: 'Régulation, Formation' },
-      ]
-    },
-    {
-      id: 'planification',
-      title: 'Planification',
-      icon: Calendar,
-      color: 'from-purple-500 to-purple-600',
-      bgColor: 'bg-purple-50',
-      borderColor: 'border-purple-200',
-      modules: [
-        { path: '/parametres-solveur', icon: Settings, label: 'Paramètres Solveur', description: 'Règles légales' },
-        { path: '/planning', icon: Calendar, label: 'Génération Planning', description: 'Solveur, verrouillage' },
-        { path: '/planning-visuel', icon: TrendingUp, label: 'Planning Visuel', description: 'Tableau interactif' },
-      ]
-    },
-    {
-      id: 'pilotage',
-      title: 'Pilotage',
-      icon: TrendingUp,
-      color: 'from-orange-500 to-orange-600',
-      bgColor: 'bg-orange-50',
-      borderColor: 'border-orange-200',
-      modules: [
-        { path: '/dashboard', icon: TrendingUp, label: 'Tableau de Bord', description: 'KPIs, alertes' },
-        { path: '/rapports', icon: FileText, label: 'Rapports', description: 'Export, stats' },
-      ]
-    },
-    {
-      id: 'aide',
-      title: 'Aide',
-      icon: HelpCircle,
-      color: 'from-gray-500 to-gray-600',
-      bgColor: 'bg-gray-50',
-      borderColor: 'border-gray-200',
-      modules: [
-        { path: '/guide', icon: HelpCircle, label: 'Guide Utilisation', description: 'Workflow, FAQ' },
-        { path: '/parametres', icon: Settings, label: 'Paramètres App', description: 'Config générale' },
-      ]
-    },
-  ];
+  // Method 1 inputs (kilometers)
+  const [m1VslD, setM1VslD] = useState('');
+  const [m1VslE, setM1VslE] = useState('');
+  const [m1VslH, setM1VslH] = useState('');
+  const [m1VslC, setM1VslC] = useState('');
+  const [m1AmbuD, setM1AmbuD] = useState('');
 
-  // Quick stats
-  const quickStats = [
-    { label: 'Disponibles', value: disponibles, color: 'text-green-600', bg: 'bg-green-50' },
-    { label: 'En Formation', value: enFormation, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Besoins Couverts', value: `${besoinsComplets}/${besoinsDuJour.length}`, color: 'text-accent', bg: 'bg-accent/10' },
-    { label: 'Non Couverts', value: besoinsNonCouverts, color: 'text-red-600', bg: 'bg-red-50' },
-  ];
+  // Method 3 inputs (consumption)
+  const [m3Diesel, setM3Diesel] = useState('');
+  const [m3Colza, setM3Colza] = useState('');
+  const [m3Elec, setM3Elec] = useState('');
 
-  // Panic button - reset localStorage
-  const handlePanicReset = () => {
-    if (confirm('⚠️ ATTENTION : Cette action va supprimer TOUTES vos données et réinitialiser l\'application.\n\nÊtes-vous sûr de vouloir continuer ?')) {
-      localStorage.removeItem('ambuplan_data');
-      toast.success('Cache effacé. Rechargement en cours...');
-      setTimeout(() => window.location.reload(), 1000);
+  // Results
+  const [results, setResults] = useState<EmissionData[]>([]);
+  const [totalKg, setTotalKg] = useState(0);
+  const [methodUsed, setMethodUsed] = useState('');
+  const [hasCalculated, setHasCalculated] = useState(false);
+
+  const formatNumber = (num: number, decimals = 0) => {
+    return new Intl.NumberFormat('fr-FR', {
+      maximumFractionDigits: decimals,
+      minimumFractionDigits: decimals,
+    }).format(num);
+  };
+
+  const getPeriodText = () => {
+    if (startMonth === endMonth && startYear === endYear) {
+      return `${startMonth} ${startYear}`;
     }
+    return `De ${startMonth} ${startYear} à ${endMonth} ${endYear}`;
+  };
+
+  const calculateM1 = () => {
+    const vslD = parseFloat(m1VslD) || 0;
+    const vslE = parseFloat(m1VslE) || 0;
+    const vslH = parseFloat(m1VslH) || 0;
+    const vslC = parseFloat(m1VslC) || 0;
+    const ambuD = parseFloat(m1AmbuD) || 0;
+
+    const data: EmissionData[] = [
+      { label: 'VSL/Taxi Thermique', value: vslD * FACTORS_M1.vslDiesel, color: '#004C8C' },
+      { label: 'VSL/Taxi Électrique', value: vslE * FACTORS_M1.vslElec, color: '#78BE20' },
+      { label: 'VSL/Taxi Hybride', value: vslH * FACTORS_M1.vslHybride, color: '#00A3E0' },
+      { label: 'VSL/Taxi Colza (B100)', value: vslC * FACTORS_M1.vslColza, color: '#A3D977' },
+      { label: 'Ambulance Thermique', value: ambuD * FACTORS_M1.ambuDiesel, color: '#F59E0B' },
+    ].filter(item => item.value > 0);
+
+    const total = data.reduce((acc, curr) => acc + curr.value, 0);
+    setResults(data);
+    setTotalKg(total);
+    setMethodUsed('Méthode 1 (Kilométrage)');
+    setHasCalculated(true);
+  };
+
+  const calculateM3 = () => {
+    const diesel = parseFloat(m3Diesel) || 0;
+    const colza = parseFloat(m3Colza) || 0;
+    const elec = parseFloat(m3Elec) || 0;
+
+    const data: EmissionData[] = [
+      { label: 'Diesel/Essence', value: diesel * FACTORS_M3.dieselLiters, color: '#004C8C' },
+      { label: 'Colza (B100)', value: colza * FACTORS_M3.colzaLiters, color: '#A3D977' },
+      { label: 'Électricité', value: elec * FACTORS_M3.elecKwh, color: '#78BE20' },
+    ].filter(item => item.value > 0);
+
+    const total = data.reduce((acc, curr) => acc + curr.value, 0);
+    setResults(data);
+    setTotalKg(total);
+    setMethodUsed('Méthode 3 (Consommation)');
+    setHasCalculated(true);
+  };
+
+  const exportPDF = () => {
+    window.print();
+  };
+
+  const chartConfig: ChartConfig = {
+    emissions: {
+      label: 'Émissions CO₂e',
+    },
   };
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-accent to-accent-light text-white py-8 px-6 md:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
-                <Activity size={36} />
-              </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold">{state.currentAgence.nom}</h1>
-                <p className="text-white/80 text-sm">{state.currentAgence.code} • {state.bureaux.length} sites • {state.personnel.length} salariés</p>
-              </div>
+      <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#004C8C] to-[#00A3E0] flex items-center justify-center shadow-lg">
+              <Leaf className="w-7 h-7 text-white" />
             </div>
-            
-            {/* Quick Stats */}
-            <div className="hidden md:flex items-center gap-3">
-              {quickStats.map((stat, i) => (
-                <div key={i} className={`${stat.bg} backdrop-blur-sm rounded-lg px-4 py-2 text-center`}>
-                  <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
-                  <div className="text-xs text-text-muted">{stat.label}</div>
-                </div>
-              ))}
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-[#004C8C] to-[#00A3E0] bg-clip-text text-transparent">
+                Calculateur Empreinte Carbone
+              </h1>
+              <p className="text-slate-600 font-medium">Agences Vyv Ambulance</p>
             </div>
           </div>
-          
-          {/* Date selector hint */}
-          <p className="text-white/70 text-sm mt-4">
-            📅 {new Date(today).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Badge variant="outline" className="bg-[#004C8C]/10 text-[#004C8C] border-[#004C8C]/30">
+              <Info className="w-3 h-3 mr-1" />
+              Outil interne d'évaluation GES
+            </Badge>
+            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+              <LeafIcon className="w-3 h-3 mr-1" />
+              Référentiel ADEME
+            </Badge>
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-8">
-        
-        {/* Module Zones Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
-          {zones.map((zone) => (
-            <Card 
-              key={zone.id}
-              className={`p-5 bg-surface border-2 ${zone.borderColor} rounded-xl overflow-hidden`}
-            >
-              {/* Zone Header */}
-              <div className={`bg-gradient-to-r ${zone.color} text-white px-4 py-3 -mx-5 -mt-5 mb-4`}>
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Input Section */}
+          <Card className="lg:col-span-7 border-0 shadow-xl bg-white/90 backdrop-blur-sm overflow-hidden">
+            {/* Period Selector */}
+            <div className="bg-gradient-to-r from-slate-50 to-blue-50 p-4 border-b border-slate-100">
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="text-sm font-semibold text-slate-700">Période d'évaluation :</span>
                 <div className="flex items-center gap-2">
-                  <zone.icon size={20} />
-                  <h3 className="font-bold">{zone.title}</h3>
+                  <span className="text-sm text-slate-500">De</span>
+                  <Select value={startMonth} onValueChange={setStartMonth}>
+                    <SelectTrigger className="w-[140px] h-9 bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTHS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    value={startYear}
+                    onChange={(e) => setStartYear(e.target.value)}
+                    className="w-20 h-9"
+                    min={2020}
+                    max={2050}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-500">à</span>
+                  <Select value={endMonth} onValueChange={setEndMonth}>
+                    <SelectTrigger className="w-[140px] h-9 bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTHS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    value={endYear}
+                    onChange={(e) => setEndYear(e.target.value)}
+                    className="w-20 h-9"
+                    min={2020}
+                    max={2050}
+                  />
                 </div>
               </div>
-              
-              {/* Modules List */}
-              <div className="space-y-2">
-                {zone.modules.map((mod, i) => (
-                  <button
-                    key={i}
-                    onClick={() => navigate(mod.path)}
-                    className="w-full flex items-center gap-3 p-3 bg-bg rounded-lg hover:bg-accent/5 transition-colors text-left group"
-                  >
-                    <div className={`w-10 h-10 ${zone.bgColor} rounded-lg flex items-center justify-center`}>
-                      <mod.icon size={18} className={zone.color.replace('from-', 'text-').replace(' to-', '')} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-text-main text-sm">{mod.label}</p>
-                      <p className="text-xs text-text-muted truncate">{mod.description}</p>
-                    </div>
-                    <ChevronRight size={16} className="text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                ))}
-              </div>
-            </Card>
-          ))}
-        </div>
+            </div>
 
-        {/* Today's Summary Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Besoins du jour */}
-          <Card className="p-6 bg-surface border-border rounded-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-text-main flex items-center gap-2">
-                <Activity size={20} className="text-accent" />
-                Besoins du jour
-              </h3>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => navigate('/besoins')}
-                className="text-accent"
-              >
-                Voir tout <ChevronRight size={16} className="ml-1"/>
-              </Button>
-            </div>
-            
-            {besoinsDuJour.length > 0 ? (
-              <div className="space-y-3">
-                {besoinsDuJour.slice(0, 5).map((besoin) => {
-                  const bureau = state.bureaux.find(b => b.id === besoin.bureauId);
-                  return (
-                    <div 
-                      key={besoin.id}
-                      className="flex items-center justify-between p-3 bg-bg rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full ${
-                          besoin.statut === 'complete' ? 'bg-success' :
-                          besoin.statut === 'partiel' ? 'bg-warning' : 'bg-danger'
-                        }`} />
-                        <div>
-                          <p className="font-medium text-text-main">{besoin.service}</p>
-                          <p className="text-xs text-text-muted">{bureau?.nom} • {besoin.quart.replace('-', ' ')}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-text-main">{besoin.personnelAffecte.length}/{besoin.personnelRequis}</p>
-                        <Badge 
-                          variant="secondary"
-                          className={`text-xs ${
-                            besoin.statut === 'complete' ? 'bg-green-100 text-green-700' :
-                            besoin.statut === 'partiel' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
-                          }`}
-                        >
-                          {besoin.statut === 'complete' ? 'OK' : besoin.statut === 'partiel' ? 'Partiel' : 'Non'}
-                        </Badge>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-text-muted">
-                <Clock size={32} className="mx-auto mb-2 opacity-50" />
-                <p>Aucun besoin prévu aujourd'hui</p>
-              </div>
-            )}
-          </Card>
+            {/* Tabs */}
+            <Tabs defaultValue="method1" className="w-full">
+              <TabsList className="w-full grid grid-cols-2 bg-slate-100 p-1 rounded-none h-auto">
+                <TabsTrigger 
+                  value="method1" 
+                  className="flex flex-col items-center py-3 px-4 gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                >
+                  <Route className="w-4 h-4" />
+                  <span className="font-bold text-xs">Méthode 1</span>
+                  <span className="text-[10px] text-slate-500 font-normal">Par Kilométrage</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="method3" 
+                  className="flex flex-col items-center py-3 px-4 gap-1 data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                >
+                  <Fuel className="w-4 h-4" />
+                  <span className="font-bold text-xs">Méthode 3</span>
+                  <span className="text-[10px] text-slate-500 font-normal">Par Consommation</span>
+                </TabsTrigger>
+              </TabsList>
 
-          {/* Personnel disponible */}
-          <Card className="p-6 bg-surface border-border rounded-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-text-main flex items-center gap-2">
-                <Users size={20} className="text-accent" />
-                Personnel disponible
-              </h3>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => navigate('/personnel')}
-                className="text-accent"
-              >
-                Voir tout <ChevronRight size={16} className="ml-1"/>
-              </Button>
-            </div>
-            
-            <div className="flex flex-wrap gap-2">
-              {state.personnel.filter(p => p.statut === 'disponible' && p.actif).length > 0 ? (
-                state.personnel.filter(p => p.statut === 'disponible' && p.actif).map((p) => (
-                  <span 
-                    key={p.id} 
-                    className="px-3 py-1.5 bg-green-50 border border-green-200 text-success text-sm rounded-full font-medium"
-                  >
-                    {p.prenom} {p.nom[0]}.
-                    {p.preferenciasNuit && <Moon size={12} className="inline ml-1 text-blue-500" />}
-                    {p.preferenciasWE && <Sun size={12} className="inline ml-1 text-purple-500" />}
-                  </span>
-                ))
-              ) : (
-                <div className="text-center py-8 text-text-muted w-full">
-                  <Users size={32} className="mx-auto mb-2 opacity-50" />
-                  <p>Aucun personnel disponible</p>
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Alerts Section */}
-        {besoinsNonCouverts > 0 && (
-          <Card className="p-6 bg-red-50 border-2 border-red-200 rounded-xl mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              <AlertTriangle size={24} className="text-danger" />
-              <h3 className="text-lg font-bold text-danger">Alertes de Couverture</h3>
-              <Badge variant="destructive">{besoinsNonCouverts} besoin{besoinsNonCouverts > 1 ? 's' : ''}</Badge>
-            </div>
-            <div className="space-y-2">
-              {besoinsDuJour.filter(b => b.statut === 'non-couvert').map((besoin) => {
-                const bureau = state.bureaux.find(b => b.id === besoin.bureauId);
-                return (
-                  <div key={besoin.id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-red-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                        <MapPin size={16} className="text-danger" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-text-main">{besoin.service}</p>
-                        <p className="text-sm text-text-muted">{bureau?.nom} • {besoin.quart.replace('-', ' ')}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xl font-bold text-danger">{besoin.personnelRequis}</p>
-                      <p className="text-xs text-text-muted">requis</p>
+              {/* Method 1: By Kilometers */}
+              <TabsContent value="method1" className="p-6 space-y-6">
+                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-l-4 border-[#00A3E0] p-4 rounded-r-lg">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-[#00A3E0] mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-[#004C8C]">Facteurs d'émission (ADEME)</p>
+                      <p className="text-sm text-slate-600 mt-1">
+                        Estimations moyennes basées sur la distance parcourue pour votre flotte d'ambulances et VSL/Taxis.
+                      </p>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-            <Button 
-              onClick={() => navigate('/planning')}
-              variant="outline" 
-              className="w-full mt-4 border-red-300 text-red-600 hover:bg-red-100"
-            >
-              <RefreshCw size={16} className="mr-2" />
-              Relancer le solveur
-            </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* VSL Diesel */}
+                  <div className="space-y-2">
+                    <Label htmlFor="m1-vsl-d" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                      <Car className="w-4 h-4 text-[#004C8C]" />
+                      VSL/Taxi Thermique (Diesel/Ess)
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="m1-vsl-d"
+                        type="number"
+                        value={m1VslD}
+                        onChange={(e) => setM1VslD(e.target.value)}
+                        placeholder="Ex: 4500"
+                        className="pr-16 h-12 bg-white border-slate-200 focus:border-[#00A3E0] focus:ring-2 focus:ring-[#00A3E0]/20"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">
+                        km total
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-[#004C8C]"></span>
+                      0.16 kg CO₂e / km
+                    </p>
+                  </div>
+
+                  {/* VSL Electric */}
+                  <div className="space-y-2">
+                    <Label htmlFor="m1-vsl-e" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                      <ZapIcon className="w-4 h-4 text-[#78BE20]" />
+                      VSL/Taxi 100% Électrique
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="m1-vsl-e"
+                        type="number"
+                        value={m1VslE}
+                        onChange={(e) => setM1VslE(e.target.value)}
+                        placeholder="Ex: 5000"
+                        className="pr-16 h-12 bg-white border-slate-200 focus:border-[#78BE20] focus:ring-2 focus:ring-[#78BE20]/20"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">
+                        km total
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-[#78BE20]"></span>
+                      0.02 kg CO₂e / km
+                    </p>
+                  </div>
+
+                  {/* VSL Hybrid */}
+                  <div className="space-y-2">
+                    <Label htmlFor="m1-vsl-h" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-[#00A3E0]" />
+                      VSL/Taxi Hybride
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="m1-vsl-h"
+                        type="number"
+                        value={m1VslH}
+                        onChange={(e) => setM1VslH(e.target.value)}
+                        placeholder="Ex: 2000"
+                        className="pr-16 h-12 bg-white border-slate-200 focus:border-[#00A3E0] focus:ring-2 focus:ring-[#00A3E0]/20"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">
+                        km total
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-[#00A3E0]"></span>
+                      0.10 kg CO₂e / km
+                    </p>
+                  </div>
+
+                  {/* VSL Colza */}
+                  <div className="space-y-2">
+                    <Label htmlFor="m1-vsl-c" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                      <LeafIcon className="w-4 h-4 text-[#A3D977]" />
+                      VSL/Taxi Colza (B100)
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="m1-vsl-c"
+                        type="number"
+                        value={m1VslC}
+                        onChange={(e) => setM1VslC(e.target.value)}
+                        placeholder="Ex: 1500"
+                        className="pr-16 h-12 bg-white border-slate-200 focus:border-[#A3D977] focus:ring-2 focus:ring-[#A3D977]/20"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">
+                        km total
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-[#A3D977]"></span>
+                      0.06 kg CO₂e / km
+                    </p>
+                  </div>
+
+                  {/* Ambulance Diesel */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="m1-ambu-d" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                      <Car className="w-4 h-4 text-[#F59E0B]" />
+                      Ambulance Thermique
+                    </Label>
+                    <div className="relative max-w-md">
+                      <Input
+                        id="m1-ambu-d"
+                        type="number"
+                        value={m1AmbuD}
+                        onChange={(e) => setM1AmbuD(e.target.value)}
+                        placeholder="Ex: 6000"
+                        className="pr-16 h-12 bg-white border-slate-200 focus:border-[#F59E0B] focus:ring-2 focus:ring-[#F59E0B]/20"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">
+                        km total
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-[#F59E0B]"></span>
+                      0.22 kg CO₂e / km
+                    </p>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={calculateM1} 
+                  className="w-full h-12 bg-gradient-to-r from-[#004C8C] to-[#00A3E0] hover:opacity-90 text-white font-bold shadow-lg shadow-[#004C8C]/20 transition-all"
+                >
+                  <Calculator className="w-5 h-5 mr-2" />
+                  Calculer (Méthode 1)
+                </Button>
+              </TabsContent>
+
+              {/* Method 3: By Consumption */}
+              <TabsContent value="method3" className="p-6 space-y-6">
+                <div className="bg-gradient-to-r from-emerald-50 to-green-50 border-l-4 border-[#78BE20] p-4 rounded-r-lg">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-[#78BE20] mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-[#004C8C]">Méthode Recommandée</p>
+                      <p className="text-sm text-slate-600 mt-1">
+                        Saisissez les volumes globaux issus de vos cartes carburant et factures d'électricité de recharge pour une mesure réelle.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Diesel */}
+                  <div className="space-y-2">
+                    <Label htmlFor="m3-diesel" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                      <Fuel className="w-4 h-4 text-[#004C8C]" />
+                      Consommation Diesel/Essence
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="m3-diesel"
+                        type="number"
+                        value={m3Diesel}
+                        onChange={(e) => setM3Diesel(e.target.value)}
+                        placeholder="Ex: 850"
+                        className="pr-20 h-12 bg-white border-slate-200 focus:border-[#00A3E0] focus:ring-2 focus:ring-[#00A3E0]/20"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">
+                        Litres total
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-[#004C8C]"></span>
+                      Facteur: 3.16 kg CO₂e / L
+                    </p>
+                  </div>
+
+                  {/* Colza */}
+                  <div className="space-y-2">
+                    <Label htmlFor="m3-colza" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                      <LeafIcon className="w-4 h-4 text-[#A3D977]" />
+                      Consommation Colza (B100)
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="m3-colza"
+                        type="number"
+                        value={m3Colza}
+                        onChange={(e) => setM3Colza(e.target.value)}
+                        placeholder="Ex: 200"
+                        className="pr-20 h-12 bg-white border-slate-200 focus:border-[#A3D977] focus:ring-2 focus:ring-[#A3D977]/20"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">
+                        Litres total
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-[#A3D977]"></span>
+                      Facteur: 1.05 kg CO₂e / L
+                    </p>
+                  </div>
+
+                  {/* Electricity */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="m3-elec" className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                      <ZapIcon className="w-4 h-4 text-[#78BE20]" />
+                      Recharge Électrique Flotte
+                    </Label>
+                    <div className="relative max-w-md">
+                      <Input
+                        id="m3-elec"
+                        type="number"
+                        value={m3Elec}
+                        onChange={(e) => setM3Elec(e.target.value)}
+                        placeholder="Ex: 1200"
+                        className="pr-20 h-12 bg-white border-slate-200 focus:border-[#78BE20] focus:ring-2 focus:ring-[#78BE20]/20"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">
+                        kWh total
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-[#78BE20]"></span>
+                      Facteur: 0.06 kg CO₂e / kWh
+                    </p>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={calculateM3} 
+                  className="w-full h-12 bg-gradient-to-r from-[#78BE20] to-emerald-500 hover:opacity-90 text-white font-bold shadow-lg shadow-[#78BE20]/20 transition-all"
+                >
+                  <Calculator className="w-5 h-5 mr-2" />
+                  Calculer (Méthode 3)
+                </Button>
+              </TabsContent>
+            </Tabs>
           </Card>
-        )}
 
-        {/* Quick Actions */}
-        <Card className="p-6 bg-surface border-border rounded-xl mb-8">
-          <h3 className="text-lg font-bold text-text-main mb-4">Actions rapides</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button 
-              onClick={() => navigate('/planning')}
-              variant="outline"
-              className="h-auto py-4 flex flex-col items-center gap-2 bg-accent/5 hover:bg-accent/10"
-            >
-              <RefreshCw size={24} className="text-accent" />
-              <span className="text-sm">Générer Planning</span>
-            </Button>
-            <Button 
-              onClick={() => navigate('/personnel')}
-              variant="outline"
-              className="h-auto py-4 flex flex-col items-center gap-2 bg-blue-50 hover:bg-blue-100"
-            >
-              <Users size={24} className="text-blue-600" />
-              <span className="text-sm">Ajouter Personnel</span>
-            </Button>
-            <Button 
-              onClick={() => navigate('/besoins')}
-              variant="outline"
-              className="h-auto py-4 flex flex-col items-center gap-2 bg-green-50 hover:bg-green-100"
-            >
-              <Activity size={24} className="text-green-600" />
-              <span className="text-sm">Créer Besoin</span>
-            </Button>
-            <Button 
-              onClick={() => navigate('/dashboard')}
-              variant="outline"
-              className="h-auto py-4 flex flex-col items-center gap-2 bg-orange-50 hover:bg-orange-100"
-            >
-              <TrendingUp size={24} className="text-orange-600" />
-              <span className="text-sm">Voir Dashboard</span>
-            </Button>
-          </div>
-        </Card>
-
-        {/* Panic Button */}
-        <Card className="p-6 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Database size={24} className="text-gray-400" />
-              <div>
-                <h3 className="font-semibold text-text-main">Problème de données ?</h3>
-                <p className="text-sm text-text-muted">Réinitialiser le cache local en cas de corruption</p>
-              </div>
+          {/* Results Section */}
+          <Card className="lg:col-span-5 border-0 shadow-xl bg-white/90 backdrop-blur-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-[#78BE20]/10 to-emerald-50 p-4 border-b border-[#78BE20]/20">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <TrendingDown className="w-5 h-5 text-[#78BE20]" />
+                Bilan d'Émissions
+              </h2>
+              {hasCalculated && (
+                <p className="text-sm text-[#00A3E0] font-medium mt-1">{getPeriodText()}</p>
+              )}
             </div>
-            <Button 
-              onClick={handlePanicReset}
-              variant="outline"
-              className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
-            >
-              <RefreshCw size={16} className="mr-2" />
-              Panic Button - Reset Cache
-            </Button>
-          </div>
-        </Card>
-      </div>
+
+            <CardContent className="p-6">
+              {/* Main Result */}
+              <div className="bg-gradient-to-br from-slate-50 to-blue-50 p-6 rounded-2xl text-center border border-slate-100 shadow-inner mb-6">
+                <div className="text-5xl font-extrabold text-[#004C8C] mb-2">
+                  {formatNumber(totalKg / 1000, 2)}
+                  <span className="text-2xl text-[#00A3E0] ml-2">tCO₂e</span>
+                </div>
+                <div className="text-sm text-slate-500">
+                  Soit <span className="font-bold text-slate-700">{formatNumber(totalKg, 0)}</span> kg CO₂e
+                </div>
+                {methodUsed && (
+                  <Badge className="mt-3 bg-slate-100 text-slate-600 hover:bg-slate-100">
+                    {methodUsed}
+                  </Badge>
+                )}
+              </div>
+
+              {/* Chart */}
+              <div className="h-[280px] relative">
+                {!hasCalculated ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 text-center p-4">
+                    <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                      <Leaf className="w-8 h-8 text-slate-300" />
+                    </div>
+                    <p className="text-sm">Remplissez un formulaire pour visualiser les données</p>
+                  </div>
+                ) : (
+                  <ChartContainer config={chartConfig} className="w-full h-full">
+                    <PieChart>
+                      <Pie
+                        data={results}
+                        dataKey="value"
+                        nameKey="label"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                      >
+                        {results.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-white px-3 py-2 rounded-lg shadow-lg border border-slate-100">
+                                <p className="font-semibold text-sm">{data.label}</p>
+                                <p className="text-[#004C8C] font-bold">
+                                  {formatNumber(data.value, 0)} kg CO₂e
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                    </PieChart>
+                  </ChartContainer>
+                )}
+              </div>
+
+              {/* Legend */}
+              {hasCalculated && (
+                <div className="mt-4 space-y-2">
+                  {results.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="text-slate-600">{item.label}</span>
+                      </div>
+                      <span className="font-semibold text-slate-700">
+                        {formatNumber(item.value, 0)} kg
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Separator className="my-6" />
+
+              {/* Export Button */}
+              <Button 
+                onClick={exportPDF} 
+                disabled={!hasCalculated}
+                className="w-full h-12 bg-gradient-to-r from-[#78BE20] to-emerald-500 hover:opacity-90 text-white font-bold shadow-lg shadow-[#78BE20]/20 transition-all disabled:opacity-50"
+              >
+                <Download className="w-5 h-5 mr-2" />
+                Exporter en PDF
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-[#004C8C] text-white py-6 mt-8">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <p className="font-medium opacity-90">Outil d'estimation destiné aux responsables d'agence Vyv Ambulance</p>
+          <p className="text-sm opacity-70 mt-1">Les facteurs d'émission sont basés sur les méthodologies de l'ADEME (Base Carbone)</p>
+        </div>
+      </footer>
     </div>
   );
-};
-
-export default Index;
+}
