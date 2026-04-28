@@ -29,16 +29,16 @@ export const AffecterPersonnelModal: React.FC<AffecterPersonnelModalProps> = ({
   onOpenChange,
 }) => {
   const { state, dispatch } = useAppState();
-  const { personnel } = state;
+  const { personnel, besoins } = state;
 
   if (!besoin) return null;
 
   // Personnel déjà affecté à ce besoin
   const affectes = personnel.filter(p => besoin.personnelAffecte.includes(p.id));
   
-  // Personnel disponible (non déjà affecté à ce besoin)
+  // Personnel disponible (non déjà affecté à ce besoin ET statut disponible)
   const disponibles = personnel.filter(
-    p => p.statut === 'disponible' && !besoin.personnelAffecte.includes(p.id)
+    p => p.statut === 'disponible' && !besoin.personnelAffecte.includes(p.id) && p.actif
   );
 
   const handleAffecter = (personnelId: string) => {
@@ -158,7 +158,9 @@ export const AffecterPersonnelModal: React.FC<AffecterPersonnelModalProps> = ({
             </div>
           ) : (
             <div className="text-center py-8 text-text-muted">
+              <User size={32} className="mx-auto mb-2 opacity-50" />
               <p>Aucun personnel disponible</p>
+              <p className="text-sm mt-1">Tous les agents sont déjà affectés ou non disponibles</p>
             </div>
           )}
         </div>
