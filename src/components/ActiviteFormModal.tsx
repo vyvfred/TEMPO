@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppState, Activite } from '@/store/AppContext';
 import {
   Dialog,
@@ -25,12 +25,32 @@ export const ActiviteFormModal: React.FC<ActiviteFormModalProps> = ({
 }) => {
   const { state, dispatch } = useAppState();
   
-  const [nom, setNom] = useState(activiteToEdit?.nom || '');
-  const [type, setType] = useState<Activite['type']>(activiteToEdit?.type || 'UPH');
-  const [lieu, setLieu] = useState(activiteToEdit?.lieu || '');
-  const [besoins, setBesoins] = useState(activiteToEdit?.besoins?.toString() || '2');
-  const [bureauId, setBureauId] = useState(activiteToEdit?.bureauId || state.bureaux[0]?.id || '');
-  const [observations, setObservations] = useState(activiteToEdit?.observations || '');
+  const [nom, setNom] = useState('');
+  const [type, setType] = useState<Activite['type']>('UPH');
+  const [lieu, setLieu] = useState('');
+  const [besoins, setBesoins] = useState('2');
+  const [bureauId, setBureauId] = useState('');
+  const [observations, setObservations] = useState('');
+
+  // Synchroniser les états locaux avec activiteToEdit quand il change
+  useEffect(() => {
+    if (activiteToEdit) {
+      setNom(activiteToEdit.nom || '');
+      setType(activiteToEdit.type || 'UPH');
+      setLieu(activiteToEdit.lieu || '');
+      setBesoins(activiteToEdit.besoins?.toString() || '2');
+      setBureauId(activiteToEdit.bureauId || state.bureaux[0]?.id || '');
+      setObservations(activiteToEdit.observations || '');
+    } else {
+      // Reset pour une nouvelle activité
+      setNom('');
+      setType('UPH');
+      setLieu('');
+      setBesoins('2');
+      setBureauId(state.bureaux[0]?.id || '');
+      setObservations('');
+    }
+  }, [activiteToEdit, state.bureaux]);
 
   const isEditing = !!activiteToEdit;
 
@@ -96,7 +116,7 @@ export const ActiviteFormModal: React.FC<ActiviteFormModalProps> = ({
           </DialogTitle>
           <DialogDescription>
             {isEditing 
-              ? `Modifier "${activiteToEdit.nom}"` 
+              ? `Modifier "${activiteToEdit?.nom}"` 
               : 'Créer une nouvelle activité planifiée'}
           </DialogDescription>
         </DialogHeader>
