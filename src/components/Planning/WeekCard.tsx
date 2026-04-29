@@ -49,20 +49,28 @@ export const WeekCard: React.FC<WeekCardProps> = ({ week, onGenerate, isToday, v
           <div>
             <h3 className="font-semibold text-text-main">Semaine {week.weekNumber}</h3>
             <p className="text-sm text-text-muted">
-              {new Date(week.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-              {' - '}
-              {new Date(week.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+              {formatDate(week.startDate)} - {formatDate(week.endDate)}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3 text-sm">
-            <span className="flex items-center gap-1"><CheckCircle size={14} className="text-green-600" />{week.stats.covered}</span>
-            <span className="flex items-center gap-1"><AlertCircle size={14} className="text-yellow-600" />{week.stats.partial}</span>
-            <span className="flex items-center gap-1"><XCircle size={14} className="text-red-600" />{week.stats.uncovered}</span>
+            <span className="flex items-center gap-1">
+              <CheckCircle size={14} className="text-green-600" />
+              {week.stats.covered}
+            </span>
+            <span className="flex items-center gap-1">
+              <AlertCircle size={14} className="text-yellow-600" />
+              {week.stats.partial}
+            </span>
+            <span className="flex items-center gap-1">
+              <XCircle size={14} className="text-red-600" />
+              {week.stats.uncovered}
+            </span>
           </div>
           <Button size="sm" variant="outline" onClick={onGenerate}>
-            <Sparkles size={14} className="mr-1" />Générer
+            <Sparkles size={14} className="mr-1" />
+            Générer
           </Button>
         </div>
       </div>
@@ -75,6 +83,11 @@ export const WeekCard: React.FC<WeekCardProps> = ({ week, onGenerate, isToday, v
   );
 };
 
+const formatDate = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+};
+
 const DayCell: React.FC<{ day: DayData; isToday: boolean; compact: boolean }> = ({ day, isToday, compact }) => {
   const { state } = useAppState();
 
@@ -82,7 +95,7 @@ const DayCell: React.FC<{ day: DayData; isToday: boolean; compact: boolean }> = 
     return (
       <div className={`p-3 rounded-lg border ${isToday ? 'border-accent bg-accent/5' : 'border-border bg-bg'}`}>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-text-main capitalize">{day.dayName}</span>
+          <span className="text-sm font-medium text-text-main">{day.dayName}</span>
           <span className="text-xs text-text-muted">{day.date.split('-')[2]}</span>
         </div>
         <div className="space-y-1">
@@ -114,7 +127,7 @@ const DayCell: React.FC<{ day: DayData; isToday: boolean; compact: boolean }> = 
   return (
     <div className={`p-4 rounded-xl border ${isToday ? 'border-accent bg-accent/5' : 'border-border bg-bg'}`}>
       <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
-        <span className="text-lg font-bold text-text-main capitalize">{day.dayName}</span>
+        <span className="text-lg font-bold text-text-main">{day.dayName}</span>
         <span className="text-sm text-text-muted">{day.date.split('-')[2]}</span>
       </div>
       <div className="space-y-3">
@@ -156,7 +169,9 @@ const DayCell: React.FC<{ day: DayData; isToday: boolean; compact: boolean }> = 
             );
           })
         ) : (
-          <div className="text-center py-6 text-text-muted"><p className="text-sm">Aucun besoin</p></div>
+          <div className="text-center py-6 text-text-muted">
+            <p className="text-sm">Aucun besoin</p>
+          </div>
         )}
       </div>
     </div>

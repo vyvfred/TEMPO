@@ -61,10 +61,13 @@ export function usePlanningData(selectedBureau: string = 'all') {
         });
       }
       
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      
       weeks.push({
         weekNumber: w + 1,
         startDate: weekStart.toISOString().split('T')[0],
-        endDate: new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        endDate: weekEnd.toISOString().split('T')[0],
         days,
         stats,
       });
