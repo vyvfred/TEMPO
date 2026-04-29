@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '@/store/AppContext';
-import { generatePlanning } from '@/utils/planningAlgorithm';
-import { 
-  Users, Truck, CalendarCheck, AlertTriangle, TrendingUp, 
-  Activity as ActivityIcon, Briefcase, Clock, Award,
-  ArrowRight, CheckCircle, XCircle, UserPlus, Sparkles
-} from 'lucide-react';
+import { useSolver } from '@/hooks/useSolver';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { toast } from 'sonner';
+import { 
+  Users, Truck, CalendarCheck, AlertTriangle, TrendingUp, 
+  Activity as ActivityIcon, Briefcase, Clock, Award,
+  ArrowRight, CheckCircle, XCircle, UserPlus, Sparkles,
+  Cpu, Scale
+} from 'lucide-react';
 
 interface KPICardProps {
   title: string;
@@ -54,7 +55,7 @@ export const Dashboard: React.FC = () => {
   const { state, dispatch } = useAppState();
   const navigate = useNavigate();
   const { personnel, besoins, activites, taches } = state;
-  const [isGenerating, setIsGenerating] = useState(false);
+  const { isSolving, runSolver, result } = useSolver();
 
   // Calcul des KPIs réels
   const today = state.selectedDate;
@@ -103,38 +104,14 @@ export const Dashboard: React.FC = () => {
   // Besoins critiques
   const besoinsCritiques = besoinsDuJour.filter(b => b.statut === 'non-couvert');
 
-  // Génération automatique du planning
-  const handleGeneratePlanning = () => {
-    setIsGenerating(true);
-    
-    setTimeout(() => {
-      const result = generatePlanning(besoins, personnel, today);
-      
-      // Appliquer les affectations
-      for (const affectation of result.affectations) {
-        if (affectation.success) {
-          dispatch({
-            type: 'AFFECTER_PERSONNEL',
-            payload: { besoinId: affectation.besoinId, personnelId: affectation.personnelId },
-          });
-        }
-      }
-
-      // Afficher les résultats
-      if (result.affectations.length > 0) {
-        toast.success(`${result.affectations.length} affectation(s) effectuée(s) !`);
-      }
-      
-      if (result.alerts.length > 0) {
-        result.alerts.forEach(alert => toast.warning(alert));
-      }
-
-      if (result.nonCouverts.length > 0) {
-        toast.error(`${result.nonCouverts.length} besoin(s) restent non couverts`);
-      }
-
-      setIsGenerating(false);
-    }, 1500);
+  // Génération automatique du planning avec le solveur
+  const handleGeneratePlanning = async () => {
+    await runSolver({
+      showToasts: true,
+      onComplete: (res) => {
+        console.log('Solveur terminé:', res);
+      },
+    });
   };
 
   return (
@@ -146,19 +123,63 @@ export const Dashboard: React.FC = () => {
             {new Date(today).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <Button 
-          onClick={handleGeneratePlanning} 
-          className="bg-accent hover:bg-accent/90"
-          disabled={isGenerating}
-        >
-          {isGenerating ? (
-            <Sparkles size={18} className="mr-2 animate-pulse" />
-          ) : (
-            <Sparkles size={18} className="mr-2" />
-          )}
-          {isGenerating ? 'Génération...' : 'Générer Planning'}
-        </Button>
+        
+        {/* Bouton Solveur */}
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => navigate('/parametres/solveur')}
+            variant="outline"
+            size="sm"
+            className="print:hidden"
+          >
+            <Scale size={16} className="mr-2" />
+            Configurer Solveur
+          </Button>
+          <Button 
+            onClick={handleGeneratePlanning} 
+            className="bg-accent hover:bg-accent/90"
+            disabled={isSolving}
+          >
+            {isSolving ? (
+              <Sparkles size={18} className="mr-2 animate-pulse" />
+            ) : (
+              <Sparkles size={18} className="mr-2" />
+            )}
+            {isSolving ? 'Optimisation...' : 'Optimiser Planning'}
+          </Button>
+        </div>
       </div>
+
+      {/* Résultat du solveur */}
+      {result && (
+        <Card className="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CheckCircle size={24} className="text-success" />
+                <div>
+                  <p className="font-semibold text-text-main">
+                    Optimisation terminée
+                  </p>
+                  <p className="text-sm text-text-muted">
+                    {result.stats.totalAssignments} affectations effectuées en {result.stats.executionTime.toFixed(0)}ms
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="bg-green-100 text-green-700">
+                  {result.stats.coveredNeeds}/{result.stats.totalNeeds} couverts
+                </Badge>
+                {result.warnings.length > 0 && (
+                  <Badge variant="outline" className="bg-yellow-100 text-yellow-700">
+                    {result.warnings.length} alertes
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -348,7 +369,7 @@ export const Dashboard: React.FC = () => {
       {/* Actions rapides */}
       <Card className="p-6 bg-surface border-border rounded-xl">
         <h3 className="text-lg font-bold text-text-main mb-4">Actions rapides</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Button 
             onClick={() => navigate('/personnel')}
             variant="outline"
@@ -372,6 +393,14 @@ export const Dashboard: React.FC = () => {
           >
             <ActivityIcon size={24} className="text-accent" />
             <span>Voir le planning</span>
+          </Button>
+          <Button 
+            onClick={handleGeneratePlanning}
+            variant="outline"
+            className="h-auto py-4 flex flex-col items-center gap-2 border-accent text-accent hover:bg-accent hover:text-white"
+          >
+            <Cpu size={24} />
+            <span>Lancer le solveur</span>
           </Button>
         </div>
       </Card>

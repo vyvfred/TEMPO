@@ -2,9 +2,9 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   Home, LayoutDashboard, Calendar, Users, ClipboardList, 
-  Activity, Briefcase, FileText, Settings, ChevronDown, 
-  MapPin, Clock, Award, AlertTriangle, TrendingUp, CalendarDays,
-  Building2, Shield, Book, HelpCircle
+  Activity, Briefcase, FileText, Settings, 
+  MapPin, Clock, Award, AlertTriangle, 
+  Building2, Shield, Book, Cpu
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAppState } from '@/store/AppContext';
@@ -12,7 +12,7 @@ import { useAppState } from '@/store/AppContext';
 const navItems = [
   { to: '/', icon: Home, label: 'Accueil', end: true },
   { to: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord', end: true },
-  { to: '/planning', icon: CalendarDays, label: 'Planning Mensuel', badge: 'Principal' },
+  { to: '/planning', icon: Calendar, label: 'Planning Mensuel', badge: 'Principal' },
   { to: '/personnel', icon: Users, label: 'Personnel' },
   { to: '/besoins', icon: ClipboardList, label: 'Besoins' },
   { to: '/activites', icon: Activity, label: 'Activités' },
@@ -77,6 +77,30 @@ export const Sidebar: React.FC = () => {
             )}
           </NavLink>
         ))}
+      </div>
+      
+      {/* Solver Section */}
+      <div className="pt-6 mt-6 border-t border-border">
+        <h4 className="px-3 text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
+          Optimisation IA
+        </h4>
+        
+        <NavLink
+          to="/parametres/solveur"
+          className={({ isActive }) =>
+            `px-3 py-2.5 flex items-center gap-3 font-medium rounded-lg transition-all ${
+              isActive
+                ? 'bg-accent/10 text-accent shadow-sm'
+                : 'text-text-muted hover:bg-bg hover:text-text-main'
+            }`
+          }
+        >
+          <Cpu size={20} />
+          <span className="flex-1">Solveur IA</span>
+          <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+            Nouveau
+          </Badge>
+        </NavLink>
       </div>
       
       {/* Stats Section */}

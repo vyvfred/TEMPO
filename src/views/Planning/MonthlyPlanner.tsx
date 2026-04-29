@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { useAppState, Besoin } from '@/store/AppContext';
-import { generateWeeklyRecurringBesoins } from '@/utils/planningAlgorithm';
-import { 
-  Calendar, ChevronLeft, ChevronRight, Plus, Download, 
-  RefreshCw, Eye, Grid3X3, List, Sparkles, Users, MapPin,
-  Clock, CheckCircle, AlertCircle, XCircle, Filter, Settings
-} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { 
+  Calendar, Plus, Download, RefreshCw, Sparkles, Users, MapPin,
+  Clock, CheckCircle, AlertCircle, XCircle, Cpu, Settings
+} from 'lucide-react';
+import { SolverVisualizer } from '@/components/SolverVisualizer';
+import { useSolver } from '@/hooks/useSolver';
 
 const quartLabels = {
   'matin': 'Matin (06h-14h)',
@@ -52,26 +52,24 @@ interface DayData {
 export const MonthlyPlanner: React.FC = () => {
   const { state, dispatch } = useAppState();
   const { besoins, personnel, bureaux } = state;
+  const { isSolving, runSolver } = useSolver();
   
   const [currentWeek, setCurrentWeek] = useState(0);
   const [weeksToShow, setWeeksToShow] = useState(5);
   const [viewMode, setViewMode] = useState<'single' | 'multi'>('multi');
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [selectedBureau, setSelectedBureau] = useState<string>('all');
+  const [showSolverModal, setShowSolverModal] = useState(false);
 
-  // Get the current month and year
   const today = new Date();
-  const currentMonth = today.getMonth();
-  const currentYear = today.getFullYear();
 
-  // Generate weeks for the month (5 weeks by default)
+  // Generate weeks for the month
   const generateMonthWeeks = (): WeekData[] => {
     const weeks: WeekData[] = [];
     
     for (let w = 0; w < weeksToShow; w++) {
       const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() + (w * 7) - today.getDay() + 1); // Start from Monday
+      weekStart.setDate(today.getDate() + (w * 7) - today.getDay() + 1);
       
       const days: DayData[] = [];
       let stats = { total: 0, covered: 0, partial: 0, uncovered: 0 };
@@ -117,15 +115,11 @@ export const MonthlyPlanner: React.FC = () => {
 
   // Generate recurring needs for a week
   const handleGenerateWeek = (weekIndex: number) => {
-    setIsGenerating(true);
-    
     const week = weeks[weekIndex];
     const recurringBesoins = besoins.filter(b => b.recurrente);
     
-    // Generate needs for each day of the week
     week.days.forEach(day => {
       recurringBesoins.forEach(template => {
-        // Check if need already exists
         const exists = besoins.some(
           b => b.date === day.date && b.bureauId === template.bureauId && 
                b.service === template.service && b.quart === template.quart
@@ -142,7 +136,7 @@ export const MonthlyPlanner: React.FC = () => {
             personnelRequis: template.personnelRequis,
             personnelAffecte: [],
             statut: 'non-couvert',
-            recurrente: false, // Already generated, don't regenerate
+            recurrente: false,
             beneficiaire: template.beneficiaire,
           };
           
@@ -151,51 +145,7 @@ export const MonthlyPlanner: React.FC = () => {
       });
     });
     
-    setTimeout(() => {
-      setIsGenerating(false);
-      toast.success(`Semaine ${weekIndex + 1} générée !`);
-    }, 1500);
-  };
-
-  // Generate all weeks
-  const handleGenerateAllWeeks = () => {
-    setIsGenerating(true);
-    
-    weeks.forEach((week, weekIndex) => {
-      const recurringBesoins = besoins.filter(b => b.recurrente);
-      
-      week.days.forEach(day => {
-        recurringBesoins.forEach(template => {
-          const exists = besoins.some(
-            b => b.date === day.date && b.bureauId === template.bureauId && 
-                 b.service === template.service && b.quart === template.quart
-          );
-          
-          if (!exists) {
-            const newBesoin: Besoin = {
-              id: `b${Date.now()}-${day.date}-${template.id}`,
-              date: day.date,
-              bureauId: template.bureauId,
-              service: template.service,
-              typePoste: template.typePoste,
-              quart: template.quart,
-              personnelRequis: template.personnelRequis,
-              personnelAffecte: [],
-              statut: 'non-couvert',
-              recurrente: false,
-              beneficiaire: template.beneficiaire,
-            };
-            
-            dispatch({ type: 'ADD_BESOIN', payload: newBesoin });
-          }
-        });
-      });
-    });
-    
-    setTimeout(() => {
-      setIsGenerating(false);
-      toast.success(`Toutes les ${weeksToShow} semaines générées !`);
-    }, 2000);
+    toast.success(`Semaine ${weekIndex + 1} générée !`);
   };
 
   // Get stats for all weeks
@@ -211,9 +161,8 @@ export const MonthlyPlanner: React.FC = () => {
 
   const coverageRate = totalStats.total > 0 
     ? Math.round((totalStats.covered / totalStats.total) * 100) 
-    : 0;
+    : 100;
 
-  // Single week view
   const selectedWeekData = selectedWeek !== null ? weeks[selectedWeek] : weeks[0];
 
   return (
@@ -226,19 +175,20 @@ export const MonthlyPlanner: React.FC = () => {
             Planning Mensuel
           </h2>
           <p className="text-text-muted mt-1">
-            {new Date(currentYear, currentMonth, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+            {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
             {' - '}{weeksToShow} semaines
           </p>
         </div>
         
         <div className="flex flex-wrap gap-2">
+          {/* Bouton Solveur */}
           <Button 
-            onClick={handleGenerateAllWeeks}
-            className="bg-accent hover:bg-accent/90"
-            disabled={isGenerating}
+            onClick={() => setShowSolverModal(true)}
+            variant="outline"
+            className="border-accent text-accent hover:bg-accent hover:text-white"
           >
-            {isGenerating ? <RefreshCw size={16} className="mr-2 animate-spin" /> : <Sparkles size={16} className="mr-2" />}
-            Générer tout
+            <Cpu size={16} className="mr-2" />
+            Solveur IA
           </Button>
           
           <select
@@ -372,7 +322,6 @@ export const MonthlyPlanner: React.FC = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => handleGenerateWeek(weekIndex)}
-                    disabled={isGenerating}
                   >
                     <Sparkles size={14} className="mr-1" />
                     Générer
@@ -578,6 +527,41 @@ export const MonthlyPlanner: React.FC = () => {
           ))}
         </div>
       </Card>
+
+      {/* Modal Solveur */}
+      {showSolverModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-surface rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-text-main flex items-center gap-2">
+                  <Cpu size={24} className="text-accent" />
+                  Solveur de Planning Multi-Objectifs
+                </h2>
+                <button 
+                  onClick={() => setShowSolverModal(false)}
+                  className="p-2 hover:bg-bg rounded-lg transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <SolverVisualizer 
+                onComplete={() => setShowSolverModal(false)}
+              />
+              
+              <div className="flex justify-end mt-6">
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowSolverModal(false)}
+                >
+                  Fermer
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
