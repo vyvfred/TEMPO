@@ -37,11 +37,9 @@ export interface Personnel {
   preferenciasNuit: boolean;
   preferenciasWE: boolean;
   actif: boolean;
-  // Absences
   cpRestants: number;
   rttRestants: number;
   rcRestants: number;
-  // Stats
   affectationsCount: number;
   equidadScore: number;
 }
@@ -80,7 +78,7 @@ export interface Tache {
   type: 'regulation' | 'formation' | 'entretien' | 'reunion' | 'autre';
   nom: string;
   personnel: string[];
-  duree: number; // en heures
+  duree: number;
   statut: 'planifie' | 'en-cours' | 'termine';
 }
 
@@ -165,21 +163,11 @@ const initialState: AppState = {
   user: { nom: 'Dupont', prenom: 'Jean', role: 'Coordinateur' },
 };
 
-// Calcul du statut d'un besoin
 function calculateStatut(besoin: Besoin): Besoin['statut'] {
   const count = besoin.personnelAffecte.length;
   if (count === 0) return 'non-couvert';
   if (count < besoin.personnelRequis) return 'partiel';
   return 'complete';
-}
-
-// Calcul du score d'équité pour un personnel
-function calculateEquidadScore(personnel: Personnel[], affectationsCounts: Map<string, number>): number {
-  const values = Array.from(affectationsCounts.values());
-  if (values.length === 0) return 100;
-  const avg = values.reduce((a, b) => a + b, 0) / values.length;
-  if (avg === 0) return 100;
-  return Math.round(avg * 100); // Simplified score based on average
 }
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -340,7 +328,6 @@ const AppContext = createContext<{
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Chargement des données depuis localStorage
   useEffect(() => {
     const storedData = localStorage.getItem('ambuplan_data');
     if (storedData) {
@@ -355,7 +342,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Sauvegarde dans localStorage à chaque changement
   useEffect(() => {
     if (state.personnel.length > 0 || state.besoins.length > 0) {
       localStorage.setItem('ambuplan_data', JSON.stringify({
@@ -471,7 +457,6 @@ export function checkPersonnelRestrictions(
   personnel: Personnel,
   besoins: Besoin[]
 ): { valid: boolean; reason?: string } {
-  // Vérifier les nuits consécutives
   const recentNights = besoins.filter(b => b.quart === 'nuit');
   if (recentNights.length >= 3) {
     return { valid: false, reason: 'Trop de nuits consécutives' };
