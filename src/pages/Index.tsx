@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Users, Calendar, Settings, Activity, Leaf, ClipboardList, FileText, Briefcase, Building2, Shield, Book } from 'lucide-react';
+import { BarChart3, Users, Calendar, Settings, Activity, ClipboardList, FileText, Briefcase, Building2, Shield, Book } from 'lucide-react';
 
 export default function Index() {
   return (
