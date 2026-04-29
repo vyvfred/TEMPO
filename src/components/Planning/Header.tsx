@@ -54,43 +54,22 @@ export const PlanningHeader: React.FC<PlanningHeaderProps> = ({
           ))}
         </select>
 
-        <WeekSelector 
-          weeksToShow={weeksToShow} 
-          onChange={onWeeksChange} 
-        />
+        <div className="flex border border-border rounded-lg overflow-hidden">
+          {[1, 2, 3, 5].map(weeks => (
+            <button
+              key={weeks}
+              onClick={() => onWeeksChange(weeks)}
+              className={`px-3 py-2 transition-colors ${
+                weeksToShow === weeks 
+                  ? 'bg-accent text-white' 
+                  : 'bg-surface text-text-main hover:bg-bg'
+              }`}
+            >
+              {weeks}S
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
-  );
-};
-
-interface WeekSelectorProps {
-  weeksToShow: number;
-  onChange: (weeks: number) => void;
-}
-
-const WeekSelector: React.FC<WeekSelectorProps> = ({ weeksToShow, onChange }) => {
-  const options = [
-    { value: 1, label: '1S' },
-    { value: 2, label: '2S' },
-    { value: 3, label: '3S' },
-    { value: 5, label: '5S' },
-  ];
-
-  return (
-    <div className="flex border border-border rounded-lg overflow-hidden">
-      {options.map(option => (
-        <button
-          key={option.value}
-          onClick={() => onChange(option.value)}
-          className={`px-3 py-2 transition-colors ${
-            weeksToShow === option.value 
-              ? 'bg-accent text-white' 
-              : 'bg-surface text-text-main hover:bg-bg'
-          }`}
-        >
-          {option.label}
-        </button>
-      ))}
     </div>
   );
 };
