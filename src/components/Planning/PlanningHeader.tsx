@@ -18,7 +18,7 @@ export const PlanningHeader: React.FC<PlanningHeaderProps> = ({
   selectedBureau,
   onBureauChange,
 }) => {
-  const { bureaux } = useAppState();
+  const { state } = useAppState();
 
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
@@ -34,7 +34,6 @@ export const PlanningHeader: React.FC<PlanningHeaderProps> = ({
       </div>
       
       <div className="flex flex-wrap gap-2">
-        {/* Bouton Solveur */}
         <Button 
           onClick={onOpenSolver}
           variant="outline"
@@ -50,7 +49,7 @@ export const PlanningHeader: React.FC<PlanningHeaderProps> = ({
           className="px-3 py-2 bg-surface border border-border rounded-lg text-text-main text-sm"
         >
           <option value="all">Tous les bureaux</option>
-          {bureaux.map(bureau => (
+          {state.bureaux.map(bureau => (
             <option key={bureau.id} value={bureau.id}>{bureau.nom}</option>
           ))}
         </select>
@@ -64,7 +63,6 @@ export const PlanningHeader: React.FC<PlanningHeaderProps> = ({
   );
 };
 
-// Sous-composant pour la sélection du nombre de semaines
 interface WeekSelectorProps {
   weeksToShow: number;
   onChange: (weeks: number) => void;
