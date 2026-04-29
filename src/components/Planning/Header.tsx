@@ -29,7 +29,7 @@ export const PlanningHeader: React.FC<PlanningHeaderProps> = ({
         </h2>
         <p className="text-text-muted mt-1">
           {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
-          {' - '}{weeksToShow} semaines
+          {' - '}{weeksToShow} semaine{weeksToShow > 1 ? 's' : ''}
         </p>
       </div>
       

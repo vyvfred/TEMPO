@@ -6,7 +6,7 @@ import { StatsOverview } from '@/components/Planning/StatsOverview';
 import { AvailablePersonnel } from '@/components/Planning/AvailablePersonnel';
 import { SolverModal } from '@/components/Planning/SolverModal';
 import { PlanningHeader } from '@/components/Planning/Header';
-import { usePlanningData, WeekData } from '@/hooks/usePlanningData';
+import { usePlanningData } from '@/hooks/usePlanningData';
 
 export const MonthlyPlanner: React.FC = () => {
   const { state, dispatch } = useAppState();
@@ -62,6 +62,7 @@ export const MonthlyPlanner: React.FC = () => {
         selectedBureau={selectedBureau}
         onBureauChange={setSelectedBureau}
       />
+      
       <StatsOverview stats={totalStats} />
 
       {weeksToShow === 1 && (
