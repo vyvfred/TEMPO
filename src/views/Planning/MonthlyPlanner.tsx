@@ -7,11 +7,19 @@ import { Badge } from '@/components/ui/badge';
 import { 
   CheckCircle, AlertCircle, XCircle, Sparkles, Cpu, 
   Search, Shield, Calendar, Users, Grid, Plus, Lock, Info, 
-  ChevronLeft, ChevronRight, Eye, Eraser, Printer, Save, HelpCircle, Filter
+  ChevronLeft, ChevronRight, Eye, Eraser, Printer, Save, HelpCircle, Filter,
+  Highlighter, Paintbrush, Edit3, Clipboard, HelpCircle as HelpIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SolverModal } from '@/components/Planning/SolverModal';
 import { useSolver } from '@/hooks/useSolver';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 // Palette de styles étendue inspirée de l'image de référence
 const scheduleStyles = {
@@ -92,10 +100,45 @@ export const MonthlyPlanner: React.FC = () => {
   const [selectedQual, setSelectedQual] = useState<string>('all');
   const [showSolverModal, setShowSolverModal] = useState(false);
   
-  // Outil tampon / pinceau actif
+  // Modes de boîte à outils (Tampon ou Surlignage)
+  const [toolboxMode, setToolboxMode] = useState<'paint' | 'highlight'>('paint');
   const [selectedStamp, setSelectedStamp] = useState<string | null>(null);
+  const [highlightedCode, setHighlightedCode] = useState<string | null>(null);
   const [isEraserMode, setIsEraserMode] = useState<boolean>(false);
   const [isAutoSaveChecked, setIsAutoSaveChecked] = useState<boolean>(true);
+
+  // Inspecteur de cellule (Double-clic)
+  const [inspectedCell, setInspectedCell] = useState<{
+    personnelId: string;
+    personnelName: string;
+    dateStr: string;
+    schedule: any;
+    note: string;
+    vehicle: string;
+  } | null>(null);
+
+  // Dictionnaire local des notes personnalisées par utilisateur & jour
+  const [cellNotes, setCellNotes] = useState<Record<string, { note: string; vehicle: string }>>(() => {
+    try {
+      const stored = localStorage.getItem('ambuplan_detailed_notes');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Sauvegarder les observations additionnelles
+  const saveDetailedNote = (personnelId: string, dateStr: string, noteText: string, vehicleStr: string) => {
+    const key = `${personnelId}_${dateStr}`;
+    const updated = {
+      ...cellNotes,
+      [key]: { note: noteText, vehicle: vehicleStr }
+    };
+    setCellNotes(updated);
+    localStorage.setItem('ambuplan_detailed_notes', JSON.stringify(updated));
+    toast.success('Observations du planning sauvegardées');
+    setInspectedCell(null);
+  };
 
   // Générer la liste d'affichage des jours (Lundi de la semaine de selectedDate)
   const daysOfPeriod = useMemo(() => {
@@ -229,7 +272,17 @@ export const MonthlyPlanner: React.FC = () => {
     dispatch({ type: 'SET_DATE', payload: baseDate.toISOString().split('T')[0] });
   };
 
-  // Peindre les cellules du planning au clic
+  // Clic sur l'en-tête de tampon ou surbrillance
+  const handleStampTrigger = (code: string) => {
+    if (toolboxMode === 'highlight') {
+      setHighlightedCode(highlightedCode === code ? null : code);
+    } else {
+      setSelectedStamp(selectedStamp === code ? null : code);
+      setIsEraserMode(false);
+    }
+  };
+
+  // Peindre les cellules du planning au clic ou double-clic
   const handleCellClick = (personnelId: string, d: Date) => {
     const dateStr = d.toISOString().split('T')[0];
 
@@ -243,7 +296,7 @@ export const MonthlyPlanner: React.FC = () => {
       absences.filter(a => a.personnelId === personnelId && dateStr >= a.dateDebut && dateStr <= a.dateFin).forEach(a => {
         dispatch({ type: 'DELETE_ABSENCE', payload: a.id });
       });
-      toast.info('Cellule réinitialisée en REPOS / disponible');
+      toast.info('Cellule réinitialisée en REPOS');
       return;
     }
 
@@ -349,6 +402,20 @@ export const MonthlyPlanner: React.FC = () => {
     }
   };
 
+  // Inspecter les détails ou observations d'une cellule au double-clic
+  const handleCellDoubleClick = (personnelId: string, personnelName: string, dateStr: string, schedule: any) => {
+    const key = `${personnelId}_${dateStr}`;
+    const customData = cellNotes[key] || { note: '', vehicle: '' };
+    setInspectedCell({
+      personnelId,
+      personnelName,
+      dateStr,
+      schedule,
+      note: customData.note,
+      vehicle: customData.vehicle
+    });
+  };
+
   // Solveur Intelligent Multi-Objectifs
   const handleAutoOptimize = async () => {
     toast.promise(runSolver({ showToasts: false }), {
@@ -406,6 +473,31 @@ export const MonthlyPlanner: React.FC = () => {
 
         {/* Boutons d'actions à droite */}
         <div className="flex flex-wrap items-center justify-end gap-2">
+          
+          {/* Séparateur pour la boîte à outils */}
+          <div className="flex border border-border rounded-lg overflow-hidden bg-bg p-0.5">
+            <Button
+              variant={toolboxMode === 'paint' ? 'default' : 'ghost'}
+              onClick={() => { setToolboxMode('paint'); setHighlightedCode(null); }}
+              size="sm"
+              className="h-7 text-[11px] font-bold px-2 flex items-center gap-1"
+            >
+              <Paintbrush size={12} />
+              Tampon
+            </Button>
+            <Button
+              variant={toolboxMode === 'highlight' ? 'default' : 'ghost'}
+              onClick={() => { setToolboxMode('highlight'); setSelectedStamp(null); }}
+              size="sm"
+              className="h-7 text-[11px] font-bold px-2 flex items-center gap-1"
+            >
+              <Highlighter size={12} />
+              Surligneur
+            </Button>
+          </div>
+
+          <div className="h-6 w-px bg-border hidden sm:block mx-1"></div>
+
           {/* Nombre de semaines */}
           <div className="flex border border-border rounded-lg overflow-hidden bg-bg p-0.5">
             {[1, 2, 3, 5].map(wk => (
@@ -481,23 +573,27 @@ export const MonthlyPlanner: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. LEGENDE D'AMPLITUDES ET ABSENCES INTERACTIVES (Palette de Tampons - Rubber Stamps) */}
+      {/* 2. LEGENDE D'AMPLITUDES ET ABSENCES INTERACTIVES (Palette de Tampons - Rubber Stamps - Avec commutateur Mode Surlignage) */}
       <Card className="p-4 bg-surface border-border rounded-xl shadow-sm">
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between pb-1 border-b border-border/60">
             <h4 className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
               <Plus size={14} className="text-accent" />
-              Palette de codes à poser (Sélectionnez un tampon pour peindre la grille au clic)
+              {toolboxMode === 'paint' 
+                ? 'Boîte à Tampons (Sélectionnez un code pour l\'appliquer sur une case au clic)' 
+                : 'Filtre de Surlignage (Sélectionnez un code pour atténuer le reste du planning)'}
             </h4>
-            {selectedStamp && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setSelectedStamp(null)}
-                className="text-xs text-red-500 hover:text-red-700 h-6 px-2 hover:bg-red-50/50"
-              >
-                Désactiver l’outil tampon [Actif : <strong className="ml-1 uppercase">{selectedStamp}</strong>]
-              </Button>
+            
+            {/* Témoin actif selon le toolboxMode */}
+            {toolboxMode === 'paint' && selectedStamp && (
+              <Badge className="bg-accent text-white uppercase text-[10px] animate-pulse">
+                Tampon Actif: {selectedStamp}
+              </Badge>
+            )}
+            {toolboxMode === 'highlight' && highlightedCode && (
+              <Badge className="bg-purple-600 text-white uppercase text-[10px] animate-pulse">
+                Surlignage: {highlightedCode}
+              </Badge>
             )}
           </div>
           
@@ -508,21 +604,21 @@ export const MonthlyPlanner: React.FC = () => {
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-text-muted uppercase block border-b border-border/40 pb-0.5">Amplitudes</span>
               <div className="flex flex-wrap gap-1.5">
-                {legendStamps.filter(s => s.category === 'amplitude').map(stamp => (
-                  <button
-                    key={stamp.code}
-                    onClick={() => {
-                      setSelectedStamp(selectedStamp === stamp.code ? null : stamp.code);
-                      setIsEraserMode(false);
-                    }}
-                    style={{ backgroundColor: stamp.bg, color: stamp.textColor }}
-                    className={`px-2 py-1 rounded text-[11px] font-bold border-0 hover:scale-105 transition-all uppercase ${
-                      selectedStamp === stamp.code ? 'ring-2 ring-black ring-offset-1 scale-105 shadow-md' : 'opacity-90'
-                    }`}
-                  >
-                    {stamp.code}
-                  </button>
-                ))}
+                {legendStamps.filter(s => s.category === 'amplitude').map(stamp => {
+                  const isActive = toolboxMode === 'paint' ? (selectedStamp === stamp.code) : (highlightedCode === stamp.code);
+                  return (
+                    <button
+                      key={stamp.code}
+                      onClick={() => handleStampTrigger(stamp.code)}
+                      style={{ backgroundColor: stamp.bg, color: stamp.textColor }}
+                      className={`px-2 py-1 rounded text-[11px] font-bold border-0 hover:scale-105 transition-all uppercase ${
+                        isActive ? 'ring-2 ring-black ring-offset-1 scale-105 shadow-md' : 'opacity-90'
+                      }`}
+                    >
+                      {stamp.code}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -530,21 +626,21 @@ export const MonthlyPlanner: React.FC = () => {
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-text-muted uppercase block border-b border-border/40 pb-0.5">Absences</span>
               <div className="flex flex-wrap gap-1.5">
-                {legendStamps.filter(s => s.category === 'absence').map(stamp => (
-                  <button
-                    key={stamp.code}
-                    onClick={() => {
-                      setSelectedStamp(selectedStamp === stamp.code ? null : stamp.code);
-                      setIsEraserMode(false);
-                    }}
-                    style={{ backgroundColor: stamp.bg, color: stamp.textColor }}
-                    className={`px-2 py-1 rounded text-[11px] font-bold border-0 hover:scale-105 transition-all uppercase ${
-                      selectedStamp === stamp.code ? 'ring-2 ring-black ring-offset-1 scale-105 shadow-md' : 'opacity-90'
-                    }`}
-                  >
-                    {stamp.code}
-                  </button>
-                ))}
+                {legendStamps.filter(s => s.category === 'absence').map(stamp => {
+                  const isActive = toolboxMode === 'paint' ? (selectedStamp === stamp.code) : (highlightedCode === stamp.code);
+                  return (
+                    <button
+                      key={stamp.code}
+                      onClick={() => handleStampTrigger(stamp.code)}
+                      style={{ backgroundColor: stamp.bg, color: stamp.textColor }}
+                      className={`px-2 py-1 rounded text-[11px] font-bold border-0 hover:scale-105 transition-all uppercase ${
+                        isActive ? 'ring-2 ring-black ring-offset-1 scale-105 shadow-md' : 'opacity-90'
+                      }`}
+                    >
+                      {stamp.code}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -552,21 +648,21 @@ export const MonthlyPlanner: React.FC = () => {
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-text-muted uppercase block border-b border-border/40 pb-0.5">Congés</span>
               <div className="flex flex-wrap gap-1.5">
-                {legendStamps.filter(s => s.category === 'conge').map(stamp => (
-                  <button
-                    key={stamp.code}
-                    onClick={() => {
-                      setSelectedStamp(selectedStamp === stamp.code ? null : stamp.code);
-                      setIsEraserMode(false);
-                    }}
-                    style={{ backgroundColor: stamp.bg, color: stamp.textColor }}
-                    className={`px-2 py-1 rounded text-[11px] font-bold border-0 hover:scale-105 transition-all uppercase ${
-                      selectedStamp === stamp.code ? 'ring-2 ring-black ring-offset-1 scale-105 shadow-md' : 'opacity-90'
-                    }`}
-                  >
-                    {stamp.code}
-                  </button>
-                ))}
+                {legendStamps.filter(s => s.category === 'conge').map(stamp => {
+                  const isActive = toolboxMode === 'paint' ? (selectedStamp === stamp.code) : (highlightedCode === stamp.code);
+                  return (
+                    <button
+                      key={stamp.code}
+                      onClick={() => handleStampTrigger(stamp.code)}
+                      style={{ backgroundColor: stamp.bg, color: stamp.textColor }}
+                      className={`px-2 py-1 rounded text-[11px] font-bold border-0 hover:scale-105 transition-all uppercase ${
+                        isActive ? 'ring-2 ring-black ring-offset-1 scale-105 shadow-md' : 'opacity-90'
+                      }`}
+                    >
+                      {stamp.code}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -574,21 +670,21 @@ export const MonthlyPlanner: React.FC = () => {
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-text-muted uppercase block border-b border-border/40 pb-0.5">JF / Fériés</span>
               <div className="flex flex-wrap gap-1.5">
-                {legendStamps.filter(s => s.category === 'ferie').map(stamp => (
-                  <button
-                    key={stamp.code}
-                    onClick={() => {
-                      setSelectedStamp(selectedStamp === stamp.code ? null : stamp.code);
-                      setIsEraserMode(false);
-                    }}
-                    style={{ backgroundColor: stamp.bg, color: stamp.textColor }}
-                    className={`px-2 py-1 rounded text-[11px] font-bold border-0 hover:scale-105 transition-all uppercase ${
-                      selectedStamp === stamp.code ? 'ring-2 ring-black ring-offset-1 scale-105 shadow-md' : 'opacity-90'
-                    }`}
-                  >
-                    {stamp.code}
-                  </button>
-                ))}
+                {legendStamps.filter(s => s.category === 'ferie').map(stamp => {
+                  const isActive = toolboxMode === 'paint' ? (selectedStamp === stamp.code) : (highlightedCode === stamp.code);
+                  return (
+                    <button
+                      key={stamp.code}
+                      onClick={() => handleStampTrigger(stamp.code)}
+                      style={{ backgroundColor: stamp.bg, color: stamp.textColor }}
+                      className={`px-2 py-1 rounded text-[11px] font-bold border-0 hover:scale-105 transition-all uppercase ${
+                        isActive ? 'ring-2 ring-black ring-offset-1 scale-105 shadow-md' : 'opacity-90'
+                      }`}
+                    >
+                      {stamp.code}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -596,21 +692,21 @@ export const MonthlyPlanner: React.FC = () => {
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-text-muted uppercase block border-b border-border/40 pb-0.5">Médical / Maladie</span>
               <div className="flex flex-wrap gap-1.5">
-                {legendStamps.filter(s => s.category === 'maladie').map(stamp => (
-                  <button
-                    key={stamp.code}
-                    onClick={() => {
-                      setSelectedStamp(selectedStamp === stamp.code ? null : stamp.code);
-                      setIsEraserMode(false);
-                    }}
-                    style={{ backgroundColor: stamp.bg, color: stamp.textColor }}
-                    className={`px-2 py-1 rounded text-[11px] font-bold border-0 hover:scale-105 transition-all uppercase ${
-                      selectedStamp === stamp.code ? 'ring-2 ring-black ring-offset-1 scale-105 shadow-md' : 'opacity-90'
-                    }`}
-                  >
-                    {stamp.code}
-                  </button>
-                ))}
+                {legendStamps.filter(s => s.category === 'maladie').map(stamp => {
+                  const isActive = toolboxMode === 'paint' ? (selectedStamp === stamp.code) : (highlightedCode === stamp.code);
+                  return (
+                    <button
+                      key={stamp.code}
+                      onClick={() => handleStampTrigger(stamp.code)}
+                      style={{ backgroundColor: stamp.bg, color: stamp.textColor }}
+                      className={`px-2 py-1 rounded text-[11px] font-bold border-0 hover:scale-105 transition-all uppercase ${
+                        isActive ? 'ring-2 ring-black ring-offset-1 scale-105 shadow-md' : 'opacity-90'
+                      }`}
+                    >
+                      {stamp.code}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -724,7 +820,7 @@ export const MonthlyPlanner: React.FC = () => {
                   <tr key={person.id} className="border-b border-border hover:bg-slate-50/50 transition-colors">
                     
                     {/* Profil Salarié Sticky */}
-                    <td className="sticky left-0 z-20 bg-surface border-r border-border p-3 w-[240px] shadow-[2px_0_5px_rgba(0,0,0,0.03)]">
+                    <td className="sticky left-0 z-20 bg-surface border-r border-border p-3 w-[240px] shadow-[2px_0_5px_rgba(0,0,0,0.03)] opacity-100">
                       <div className="flex items-center gap-2.5">
                         
                         {/* DEA / AA / VSL badge */}
@@ -758,21 +854,35 @@ export const MonthlyPlanner: React.FC = () => {
                       const schedule = getDaySchedule(person.id, dateStr);
                       const configStyle = scheduleStyles[schedule.code as keyof typeof scheduleStyles] || scheduleStyles.REP;
                       const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                      
+                      // Gestion Surlignement
+                      const shouldDim = toolboxMode === 'highlight' && highlightedCode !== null && schedule.code !== highlightedCode;
+                      const isHighlighted = toolboxMode === 'highlight' && highlightedCode !== null && schedule.code === highlightedCode;
+
+                      // Récupérer s'il y a des observations personnalisées via double-clic
+                      const detailedNoteKey = `${person.id}_${dateStr}`;
+                      const hasDetailedNotes = !!cellNotes[detailedNoteKey]?.note;
+                      const detailedVehicle = cellNotes[detailedNoteKey]?.vehicle;
 
                       return (
                         <td 
                           key={dIndex}
                           onClick={() => handleCellClick(person.id, day)}
+                          onDoubleClick={() => handleCellDoubleClick(person.id, `${person.prenom} ${person.nom}`, dateStr, schedule)}
                           className={`p-1 text-center border-r border-[#e2e8f0] w-[120px] transition-all relative group cursor-pointer ${
                             isWeekend ? 'bg-slate-50/20' : ''
                           } ${
                             selectedStamp || isEraserMode ? 'hover:bg-accent/10 hover:border-accent' : ''
+                          } ${
+                            shouldDim ? 'opacity-25' : 'opacity-100'
                           }`}
                         >
                           {/* Badge de couleur du shift */}
                           <div 
-                            className={`w-full py-2.5 rounded-lg text-xs font-bold border flex flex-col items-center justify-center min-h-[50px] transition-all ${
+                            className={`w-full py-2.5 rounded-lg text-xs font-bold border flex flex-col items-center justify-center min-h-[50px] transition-all relative ${
                               configStyle.bg
+                            } ${
+                              isHighlighted ? 'ring-4 ring-purple-600 animate-pulse' : ''
                             }`}
                             title={schedule.detail}
                           >
@@ -784,6 +894,16 @@ export const MonthlyPlanner: React.FC = () => {
                                 {schedule.type === 'absence' ? 'ABS' : 'ACTIF'}
                               </span>
                             )}
+
+                            {/* Indicateurs additionnels (Post-it / Véhicule assigné) */}
+                            {detailedVehicle && (
+                              <span className="absolute bottom-0.5 right-1 text-[7px] bg-slate-900/60 text-white rounded px-0.5 uppercase tracking-tighter">
+                                {detailedVehicle}
+                              </span>
+                            )}
+                            {hasDetailedNotes && (
+                              <span className="absolute top-0.5 right-1 w-1.5 h-1.5 bg-yellow-400 rounded-full" title="Des observations existent sur cette journée" />
+                            )}
                           </div>
 
                           {/* Info-bulle d'aide d'affectation au survol */}
@@ -791,6 +911,8 @@ export const MonthlyPlanner: React.FC = () => {
                             <strong>{person.prenom} {person.nom}</strong>
                             <br />
                             {schedule.detail}
+                            {detailedVehicle && ` • Véhicule: ${detailedVehicle}`}
+                            {hasDetailedNotes && ` • Obs: ${cellNotes[detailedNoteKey].note}`}
                           </div>
                         </td>
                       );
@@ -816,13 +938,71 @@ export const MonthlyPlanner: React.FC = () => {
         <div className="flex items-start gap-3">
           <Info size={20} className="text-slate-600 flex-shrink-0 mt-0.5" />
           <div className="text-xs text-slate-700 space-y-1">
-            <h4 className="font-bold text-text-main text-sm mb-1">Aide à la planification rapide (Mode Tampon)</h4>
+            <h4 className="font-bold text-text-main text-sm mb-1">Aide à la planification rapide (Mode Tampon & Observation)</h4>
             <p>1. Cliquez sur l’un de nos <strong>Tampons de l'équipe</strong> dans la palette de raccourcis supérieure pour l'activer.</p>
             <p>2. Cliquez ensuite sur n’importe quelle case du planning pour appliquer l'amplitude ou l'absence en un clic.</p>
-            <p>3. Pour modifier de façon autonome, vous pouvez lancer ou configurer notre **Solveur Automatique IA** qui affectera le personnel disponible en respectant les contraintes légales et l'équité des salariés.</p>
+            <p>3. **Double-cliquez** sur n'importe quel badge de la grille pour ajouter un numéro d'immatriculation, de camion ou des consignes textuelles associées.</p>
           </div>
         </div>
       </Card>
+
+      {/* 5. MODAL DOUBLE CLIC INSPECTION POUR SALALRIE / CELLULE */}
+      {inspectedCell && (
+        <Dialog open={!!inspectedCell} onOpenChange={() => setInspectedCell(null)}>
+          <DialogContent className="sm:max-w-[450px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit3 size={18} className="text-accent" />
+                Détail de la journée
+              </DialogTitle>
+              <DialogDescription>
+                Consignes avancées pour {inspectedCell.personnelName} le {new Date(inspectedCell.dateStr).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-2">
+              <div>
+                <span className="text-[11px] font-bold text-text-muted block mb-1">Statut d'affectation :</span>
+                <Badge className="bg-accent text-white py-1 text-xs">
+                  {inspectedCell.schedule.code} - {inspectedCell.schedule.detail}
+                </Badge>
+              </div>
+
+              {/* Véhicule / Camion */}
+              <div>
+                <label className="text-xs font-bold text-text-main block mb-1">Immatriculation / Camion assigné :</label>
+                <Input
+                  className="h-9 text-xs"
+                  placeholder="Ex : VSL-02, AMB-08..."
+                  value={inspectedCell.vehicle}
+                  onChange={(e) => setInspectedCell({ ...inspectedCell, vehicle: e.target.value })}
+                />
+              </div>
+
+              {/* Observations */}
+              <div>
+                <label className="text-xs font-bold text-text-main block mb-1">Consignes d'observations pour la journée :</label>
+                <textarea
+                  className="w-full text-auto text-xs p-2.5 rounded-lg border border-border bg-bg h-24 focus:outline-none focus:ring-1 focus:ring-accent"
+                  placeholder="Ex : Attente appel consultation Hôpital Lariboisière, ou consignes de garde médecin..."
+                  value={inspectedCell.note}
+                  onChange={(e) => setInspectedCell({ ...inspectedCell, note: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="ghost" size="sm" onClick={() => setInspectedCell(null)}>
+                Annuler
+              </Button>
+              <Button size="sm" className="bg-accent text-white" onClick={() => saveDetailedNote(inspectedCell.personnelId, inspectedCell.dateStr, inspectedCell.note, inspectedCell.vehicle)}>
+                <Save size={14} className="mr-1" />
+                Enregistrer
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Solver Modal pour la configuration fine */}
       <SolverModal isOpen={showSolverModal} onClose={() => setShowSolverModal(false)} />
