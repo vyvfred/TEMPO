@@ -8,7 +8,7 @@ import {
   CheckCircle, AlertCircle, XCircle, Sparkles, Cpu, 
   Search, Shield, Calendar, Users, Grid, Plus, Lock, Info, 
   ChevronLeft, ChevronRight, Eye, Eraser, Printer, Save, HelpCircle, Filter,
-  Highlighter, Paintbrush, Edit3, Clipboard, HelpCircle as HelpIcon
+  Highlighter, Paintbrush, Edit3, Clipboard, HelpCircle as HelpIcon, TrendingUp, BarChart3, Clock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SolverModal } from '@/components/Planning/SolverModal';
@@ -424,6 +424,79 @@ export const MonthlyPlanner: React.FC = () => {
       error: 'Erreur lors de l’optimisation'
     });
   };
+
+  // Calcul des statistiques globales sur la période d'affichage active
+  const periodStats = useMemo(() => {
+    let totalAssignments = 0;
+    let occurrences = {
+      amplitudes: 0,
+      cp: 0,
+      rtt: 0,
+      rc: 0,
+      maladie: 0,
+      regul: 0,
+    };
+
+    filteredPersonnel.forEach(p => {
+      daysOfPeriod.forEach(day => {
+        const dateStr = day.toISOString().split('T')[0];
+        const sched = getDaySchedule(p.id, dateStr);
+        if (['AMP8', 'AMP6', 'AMV', 'TAXI'].includes(sched.code)) {
+          totalAssignments += 1;
+          occurrences.amplitudes += 1;
+        } else if (sched.code === 'CP' || sched.code === 'CP5') {
+          occurrences.cp += 1;
+        } else if (sched.code === 'RTT') {
+          occurrences.rtt += 1;
+        } else if (sched.code === 'RC') {
+          occurrences.rc += 1;
+        } else if (sched.code === 'CM') {
+          occurrences.maladie += 1;
+        } else if (sched.code === 'REG1') {
+          occurrences.regul += 1;
+        }
+      });
+    });
+
+    const totalHours = totalAssignments * 8; // Estimé à 8h par shift
+    const averageHoursPerAgent = filteredPersonnel.length > 0 
+      ? Math.round(totalHours / filteredPersonnel.length) 
+      : 0;
+
+    return {
+      totalHours,
+      averageHoursPerAgent,
+      occurrences
+    };
+  }, [filteredPersonnel, daysOfPeriod, besoins, absences, taches]);
+
+  // Alerte d’effectifs sous-dotés jour par jour
+  const understaffedDays = useMemo(() => {
+    const alerts: { dateStr: string; label: string; missing: number }[] = [];
+    
+    daysOfPeriod.forEach(day => {
+      const dateStr = day.toISOString().split('T')[0];
+      const needs = besoins.filter(b => b.date === dateStr);
+      let missingCount = 0;
+      
+      needs.forEach(n => {
+        const diff = n.personnelRequis - n.personnelAffecte.length;
+        if (diff > 0) {
+          missingCount += diff;
+        }
+      });
+
+      if (missingCount > 0) {
+        alerts.push({
+          dateStr,
+          label: day.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }),
+          missing: missingCount
+        });
+      }
+    });
+
+    return alerts.slice(0, 5); // Conserver les 5 alertes les plus critiques
+  }, [daysOfPeriod, besoins]);
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -932,6 +1005,72 @@ export const MonthlyPlanner: React.FC = () => {
           </div>
         )}
       </Card>
+
+      {/* 5. DASHBOARD STATISTIQUE & APERÇU DE LA PÉRIODE (Cockpit de couverture de l'ambulance) */}
+      <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5 mt-2">
+        <BarChart3 size={15} className="text-accent" />
+        Indicateurs analytiques & sous-tension de la période affichée ({weeksToShow} semaines)
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        
+        {/* Total Heures & charge de travail théorique */}
+        <Card className="p-4 bg-surface border-border rounded-xl flex items-center gap-3 shadow-sm">
+          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
+            <Clock size={20} />
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-text-muted block uppercase">Volume horaire total</span>
+            <p className="text-xl font-extrabold text-blue-700">{periodStats.totalHours} heures</p>
+            <span className="text-[9px] text-text-muted">{periodStats.averageHoursPerAgent}h moyenne / ambulancier</span>
+          </div>
+        </Card>
+
+        {/* Consommation Congés / CP */}
+        <Card className="p-4 bg-surface border-border rounded-xl flex items-center gap-3 shadow-sm">
+          <div className="p-2.5 bg-teal-50 text-teal-600 rounded-lg">
+            <TrendingUp size={20} />
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-text-muted block uppercase">CP consommés</span>
+            <p className="text-xl font-extrabold text-teal-700">{periodStats.occurrences.cp + periodStats.occurrences.rtt} jours</p>
+            <span className="text-[9px] text-text-muted">{periodStats.occurrences.cp} CP • {periodStats.occurrences.rtt} RTT • {periodStats.occurrences.rc} Récupérations</span>
+          </div>
+        </Card>
+
+        {/* Taux de Taux d'absentions de maladie */}
+        <Card className="p-4 bg-surface border-border rounded-xl flex items-center gap-3 shadow-sm">
+          <div className="p-2.5 bg-red-50 text-red-600 rounded-lg">
+            <AlertCircle size={20} />
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-text-muted block uppercase">Indice maladie (CM / AT)</span>
+            <p className="text-xl font-extrabold text-red-700">{periodStats.occurrences.maladie} jours d'arrêts</p>
+            <span className="text-[9px] text-text-muted">Arrêts comptabilisés sur la période visible</span>
+          </div>
+        </Card>
+
+        {/* Alertes d'effectifs sous-tension */}
+        <Card className="p-4 bg-orange-50 border-orange-200 rounded-xl shadow-sm">
+          <span className="text-[10px] font-bold text-orange-700 block uppercase mb-1.5 flex items-center gap-1">
+            <AlertCircle size={12} />
+            Alertes sous-tension ({understaffedDays.length})
+          </span>
+          {understaffedDays.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {understaffedDays.map(item => (
+                <Badge key={item.dateStr} className="bg-orange-600 text-white text-[9px] font-bold">
+                  {item.label} (-{item.missing})
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[10px] text-green-700 font-semibold flex items-center gap-1 mt-1">
+              <CheckCircle size={12} /> Tous les transports couverts pour la période
+            </p>
+          )}
+        </Card>
+
+      </div>
 
       {/* Guide d’aide rapide pour les planificateurs */}
       <Card className="p-5 bg-slate-100 border border-slate-200 rounded-xl">
