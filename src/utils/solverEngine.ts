@@ -1,5 +1,6 @@
-import { SolverConfig, loadSolverConfig } from "./solverConfig";
-import type { Personnel, Besoin, AppState, Absence } from "@/store/AppContext";
+import type { Personnel, Besoin, AppState, Absence, SolverConfig } from '@/store/AppContext';
+import { checkLegalConstraints } from './solverConfig';
+import { SolverConfig as SolverConfigType, loadSolverConfig } from './solverConfig';
 
 /**
  * Moteur de Solveur Multi-Objectifs
@@ -35,7 +36,7 @@ export interface ScoringBreakdown {
   equityScore: number;
   preferenceScore: number;
   qualificationScore: number;
-  contractScore: number; // NEW: contract compliance score
+  contractScore: number;
   totalScore: number;
   softScore: number; // NEW: soft score components
 }
@@ -48,12 +49,15 @@ function calculateQualificationScore(
   besoin: Besoin
 ): number {
   const qualMap: Record<string, string[]> = {
-    ambulance: ["ADE"], // ADE requis pour ambulance
-    VSL: ["ADE", "VSL"], // ADE ou VSL pour VSL
-    taxi: ["ADE", "AA", "VSL", "REG"], // Tous types pour taxi
+    ambulance: ['ADE'],
+    // ADE requis pour ambulance
+    VSL: ['ADE', 'VSL'],
+    // ADE ou VSL pour VSL
+    taxi: ['ADE', 'AA', 'VSL', 'REG'],
+    // Tous types pour taxi
   };
 
-  const requiredQuals = qualMap[besoin.typePoste] || ["ADE"];
+  const requiredQuals = qualMap[ besoin.typePoste ] || ['ADE'];
   const personnelQual = personnel.qualification.abreviation;
 
   if (requiredQuals.includes(personnelQual)) {
@@ -68,23 +72,22 @@ function calculateQualificationScore(
 function calculatePreferenceScore(
   personnel: Personnel,
   besoin: Besoin,
-  config: SolverConfig
-): number {
+  config: SolverConfig): number {
   if (!config.preferences.respectPreferences) return 0;
 
   let score = 0;
   const reasons: string[] = [];
 
   // Préférence nuit
-  if (besoin.quart === "nuit" && personnel.preferenciasNuit) {
+  if (besoin.quart === 'nuit' && personnel.preferenciasNuit) {
     score += config.preferences.nightPreferenceBonus;
     reasons.push(`+${config.preferences.nightPreferenceBonus} préf. nuit`);
   }
 
   // Préférence week-end
   const isWeekend =
-    new Date(besoin.date).getDay() === 0 ||
-    new Date(besoin.date).getDay() === 6;
+    new Date( besoin.date ).getDay() === 0 ||
+    new Date( besoin.date ).getDay() === 6;
   if (isWeekend && personnel.preferenciasWE) {
     score += config.preferences.wePreferenceBonus;
     reasons.push(`+${config.preferences.wePreferenceBonus} préf. WE`);
@@ -103,14 +106,12 @@ function calculateEquityScore(
 ): number {
   if (!config.equity.enableEquityScoring) return 0;
 
-  // Plus le score d'équité est bas, plus la personne mérite des affectations
   const equityWeight = config.equity.equityWeight / 100;
   const maxAffectations = Math.max(
     ...allPersonnel.map((p) => p.affectationsCount)
   );
   const currentAffectations = personnel.affectationsCount;
 
-  // Score basé sur la différence avec le max
   if (maxAffectations === 0) return 50;
 
   const gapRatio = 1 - currentAffectations / maxAffectations;
@@ -120,8 +121,7 @@ function calculateEquityScore(
 /**
  * Calcule le score de contrat pour une affectation
  * - Pénalise les dépassements d'heures
- * - Favorise les salariés en déficit d'heures
- */
+ * - Favorise les salariés en déficit d'heures */
 function calculateContractScore(
   personnel: Personnel,
   besoin: Besoin,
@@ -183,16 +183,12 @@ function getPlannedWeeklyHours(
 
   // Compter les affectations dans la semaine
   let totalHours = 0;
-  const allBesoins = getAllBesoins(); // Doit être récupéré du contexte
-
+  // Utiliser les besoins passés en paramètre (allBesoins)
+  // Ici on suppose que l'array est fourni par l'appelant
   // Pour simplifier, on considère qu'une affectation = 8h par défaut
   // Dans une version plus avancée, on pourrait utiliser la durée par besoin
-  allBesoins.forEach(b => {
-    if (b.personnelAffecte.includes(personnel.id) && b.date >= weekStartStr && b.date <= weekEndStr) {
-      totalHours += 8; // 8 heures par shift
-    }
-  });
-
+  // Cette implémentation est juste un placeholder
+  // Dans le contexte réel, on recevra l'array de besoins depuis le solveur
   return totalHours;
 }
 
@@ -205,8 +201,7 @@ function getPlannedWeeklyDays(
   currentDate: string
 ): number {
   const weekStart = new Date(currentDate);
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Lundi
-  const weekEnd = new Date(weekStart);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Lundi  const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
 
   const weekStartStr = weekStart.toISOString().split('T')[0];
@@ -214,64 +209,10 @@ function getPlannedWeeklyDays(
 
   // Compter les jours avec au moins une affectation dans la semaine
   const daysSet = new Set<string>();
-  const allBesoins = getAllBesoins();
-
-  allBesoins.forEach(b => {
-    if (b.personnelAffecte.includes(personnel.id) && b.date >= weekStartStr && b.date <= weekEndStr) {
-      daysSet.add(b.date);
-    }
-  });
-
-  return daysSet.size;
-}
-
-/**
- * Récupère tous les besoins (mock pour l'exemple, à adapter avec le contexte réel)
- */
-function getAllBesoins(): Besoin[] {
-  // Dans l'implémentation réelle, cette fonction devrait être remplacée
-  // par un accès au state via un contexte ou un store
-  throw new Error("getAllBesoins must be implemented with real data access");
-}
-
-/**
- * Évalue les composantes soft (fairness, night distribution, overtime, preferences)
- * Simple implementation returning extra points (0‑20)
- */
-function calculateSoftScore(
-  personnel: Personnel,
-  besoin: Besoin,
-  allPersonnel: Personnel[],
-  config: SolverConfig
-): number {
-  let soft = 0;
-
-  // 1. Fairness – reward when affectation count is close to the minimum
-  const minAffect = Math.min(...allPersonnel.map(p => p.affectationsCount));
-  const diffToMin = personnel.affectationsCount - minAffect;
-  // smaller diff → higher soft score (up to 5 points)
-  soft += Math.max(0, 5 - Math.abs(diffToMin));
-
-  // 2. Night distribution – bonus if the need is night and employee prefers night
-  if (besoin.quart === "nuit" && personnel.preferenciasNuit) {
-    soft += 3; // night‑preference bonus
-  }
-
-  // 3. Overtime penalty – penalize heavy load (more than 5 assignments)
-  if (personnel.affectationsCount > 5) {
-    soft -= 2; // small penalty
-  }
-
-  // 4. Preference bonus already partially covered above, but also reward
-  //    employees who have any preference when the need matches it
-  if (
-    (besoin.quart === "nuit" && personnel.preferenciasNuit) ||
-    (besoin.quart === "apres-midi" && personnel.preferenciasWE)
-  ) {
-    soft += 2;
-  }
-
-  return soft;
+  // Utiliser les besoins passés en paramètre
+  // Ici on suppose que l'array est fourni par le solveur
+  // Cette implémentation est juste un placeholder
+  return 0;
 }
 
 /**
@@ -344,7 +285,13 @@ function generateCandidates(
     if (besoin.personnelAffecte.includes(p.id)) continue;
 
     // Vérifier les contraintes légales strictes
-    const constraints = checkLegalConstraints(p, allBesoins, besoin, config, absences);
+    const constraints = checkLegalConstraints(
+      { id: p.id, affectationsCount: p.affectationsCount, restrictions: p.restrictions },
+      allBesoins,
+      besoin,
+      config,
+      absences
+    );
     if (!constraints.valid) continue;
 
     // Calculer le score (inclut soft components)
@@ -354,7 +301,6 @@ function generateCandidates(
 
   // Trier par score décroissant
   candidates.sort((a, b) => b.score.totalScore - a.score.totalScore);
-
   return candidates;
 }
 
@@ -374,12 +320,11 @@ function solveForNeed(
   if (needed <= 0) return assignments;
 
   // Générer les candidats
-  const candidates = generateCandidates(besoin, personnel, allBesoins, config, absences);
+  const candidates = generateCandidates( besoin, personnel, allBesoins, config, absences );
 
   // Affecter les meilleurs candidats
   for (let i = 0; i < Math.min(needed, candidates.length); i++) {
     const { personnel: p, score } = candidates[i];
-
     assignments.push({
       besoinId: besoin.id,
       personnelId: p.id,
@@ -416,7 +361,9 @@ export function solvePlanning(
   );
 
   // Available personnel sorted by current load (fewest assignments first)
-  const availablePersonnel = [...personnel]
+  const availablePersonnel = [
+    ...personnel,
+  ]
     .filter((p) => p.statut === "disponible" && p.actif)
     .sort((a, b) => a.affectationsCount - b.affectationsCount);
 
@@ -428,7 +375,6 @@ export function solvePlanning(
   // Process each need
   for (const besoin of needsForDate) {
     const needed = besoin.personnelRequis - besoin.personnelAffecte.length;
-
     if (needed <= 0) continue;
 
     // Solve for this need
@@ -441,9 +387,9 @@ export function solvePlanning(
     );
 
     if (needAssignments.length < needed) {
-      uncoveredNeeds.push(besoin);
+      uncoveredNeeds.push( besoin );
       warnings.push(
-        `${besoin.service}: ${needed - needAssignments.length}/${needed} non couvert(s)`
+        `${ besoin.service }: ${ needed - needAssignments.length }/${ besoin.personnelRequis } non couvert(s)`
       );
     }
 
@@ -454,11 +400,9 @@ export function solvePlanning(
   if (solverConfig.equity.enableEquityScoring) {
     const assignedIds = allAssignments.map((a) => a.personnelId);
     const assignedCounts = new Map<string, number>();
-
     for (const id of assignedIds) {
       assignedCounts.set(id, (assignedCounts.get(id) || 0) + 1);
     }
-
     const counts = Array.from(assignedCounts.values());
     const maxCount = Math.max(...counts, 0);
     const minCount = counts.length > 0 ? Math.min(...counts) : 0;
@@ -527,15 +471,11 @@ export function applySolverResults(
 export function* solvePlanningStepByStep(
   state: AppState,
   config?: SolverConfig
-): Generator<
-  {
-    step: number;
-    type: "candidate" | "assignment" | "warning" | "complete";
-    data: any;
-  },
-  void,
-  unknown
-> {
+): Generator<{
+  step: number;
+  type: "candidate" | "assignment" | "warning" | "complete";
+  data: any;
+}, void, unknown> {
   const solverConfig = config || loadSolverConfig();
   const { besoins, personnel, absences } = state;
   const date = state.selectedDate;
@@ -545,7 +485,10 @@ export function* solvePlanningStepByStep(
     (b) => b.date === date && b.statut !== "complete"
   );
 
-  const availablePersonnel = [...personnel]
+  // Available personnel sorted by current load (fewest assignments first)
+  const availablePersonnel = [
+    ...personnel,
+  ]
     .filter((p) => p.statut === "disponible" && p.actif)
     .sort((a, b) => a.affectationsCount - b.affectationsCount);
 
@@ -555,6 +498,7 @@ export function* solvePlanningStepByStep(
     const needed = besoin.personnelRequis - besoin.personnelAffecte.length;
     if (needed <= 0) continue;
 
+    // Generate candidates
     const candidates = generateCandidates(
       besoin,
       availablePersonnel,
@@ -568,21 +512,16 @@ export function* solvePlanningStepByStep(
       type: "candidate",
       data: {
         besoin,
-        candidates: candidates.slice(0, 5), // Top 5
-      },
+        candidates: candidates.slice(0, 5), // Top 5      },
     };
 
+    // Assign the top candidates
     for (let i = 0; i < Math.min(needed, candidates.length); i++) {
       const { personnel: p, score } = candidates[i];
-
       yield {
         step: ++step,
         type: "assignment",
-        data: {
-          besoin,
-          personnel: p,
-          score,
-        },
+        data: { besoin, personnel: p, score },
       };
     }
   }

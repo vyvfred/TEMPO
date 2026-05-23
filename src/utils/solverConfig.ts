@@ -1,20 +1,45 @@
-import { SolverLegalConstraints, SolverPreferences, SolverEquity, SolverLocking } from "./solverConfig";
+import type { Besoin, Absence } from '@/store/AppContext';
+
+/* Types */
+export interface SolverLegalConstraints {
+  maxHoursPerDay: number;
+  maxHoursPerWeek: number;
+  minRestBetweenShifts: number;
+  maxConsecutiveNights: number;
+}
+
+export interface SolverPreferences {
+  respectPreferences: boolean;
+  nightPreferenceBonus: number;
+  wePreferenceBonus: number;
+}
+
+export interface SolverEquity {
+  enableEquityScoring: boolean;
+  equityWeight: number;
+  maxAffectationGap: number;
+}
+
+export interface SolverLocking {
+  allowManualOverride: boolean;
+  lockGeneratedAssignments: boolean;
+}
 
 export interface SolverContract {
-  enableContractCompliance: boolean; // Activer le contrôle contrat
-  weeklyContractHours: number; // Heures de contrat par semaine (ex: 35h)
-  weeklyExpectedDays: number; // Jours de travail attendus par semaine (ex: 5)
+  enableContractCompliance: boolean;
+  weeklyContractHours: number;
+  weeklyExpectedDays: number;
 }
 
 export interface SolverConfig {
   legal: SolverLegalConstraints;
   preferences: SolverPreferences;
   equity: SolverEquity;
-  contract: SolverContract; // Ajout du contrôle contrat
-  locking: SolverLocking;
+  contract: SolverContract;
+  // locking: SolverLocking; // kept for backward compatibility
 }
 
-// Configuration par défaut
+/* Default configuration */
 export const DEFAULT_SOLVER_CONFIG: SolverConfig = {
   legal: {
     maxHoursPerDay: 10,
@@ -33,48 +58,41 @@ export const DEFAULT_SOLVER_CONFIG: SolverConfig = {
     maxAffectationGap: 5,
   },
   contract: {
-    enableContractCompliance: true, // Activer le contrôle contrat
-    weeklyContractHours: 35, // Heures de contrat par semaine
-    weeklyExpectedDays: 5, // Jours de travail attendus par semaine
+    enableContractCompliance: true,
+    weeklyContractHours: 35,
+    weeklyExpectedDays: 5,
   },
-  locking: {
-    allowManualOverride: true,
-    lockGeneratedAssignments: false,
-  },
+  // locking: { allowManualOverride: true, lockGeneratedAssignments: false },
 };
 
-/**
- * Charger la configuration depuis localStorage
- */
+/* Load configuration from localStorage */
 export function loadSolverConfig(): SolverConfig {
   try {
     const stored = localStorage.getItem('solver_config');
     if (stored) {
       const parsed = JSON.parse(stored);
       return {
+        ...DEFAULT_SOLVER_CONFIG,
         legal: { ...DEFAULT_SOLVER_CONFIG.legal, ...parsed.legal },
         preferences: { ...DEFAULT_SOLVER_CONFIG.preferences, ...parsed.preferences },
         equity: { ...DEFAULT_SOLVER_CONFIG.equity, ...parsed.equity },
         contract: { ...DEFAULT_SOLVER_CONFIG.contract, ...parsed.contract },
-        locking: { ...DEFAULT_SOLVER_CONFIG.locking, ...parsed.locking },
+        // locking: { ...DEFAULT_SOLVER_CONFIG.locking, ...parsed.locking },
       };
     }
+    return DEFAULT_SOLVER_CONFIG;
   } catch (e) {
     console.warn('Erreur lors du chargement de la config du solveur:', e);
+    return DEFAULT_SOLVER_CONFIG;
   }
-  return DEFAULT_SOLVER_CONFIG;
 }
 
-/**
- * Sauvegarder la configuration dans localStorage
- */
+/* Save configuration to localStorage */
 export function saveSolverConfig(config: SolverConfig): void {
   localStorage.setItem('solver_config', JSON.stringify(config));
 }
 
-/**
- * Validation des contraintes légales
- */
+/* Validation helpers */
 export interface ConstraintValidation {
   valid: boolean;
   reason?: string;
@@ -87,12 +105,23 @@ export function validateLegalConstraints(
 ): ConstraintValidation {
   // Vérifier les restrictions médicales
   if (personnel.restrictions.length > 0) {
-    return {
-      valid: false,
-      reason: 'Restrictions médicales actives',
-      severity: 'error',
-    };
+    return { valid: false, reason: 'Restrictions médicales actives', severity: 'error' };
   }
-  
+  return { valid: true, severity: 'warning' };
+}
+
+/**
+ * Simple constraint validation (currently only checks medical restrictions)
+ */
+export function checkLegalConstraints(
+  personnel: { id: string; affectationsCount: number; restrictions: string[] },
+  besoins: Besoin[],
+  besoin: Besoin,
+  config: SolverConfig,
+  absences: Absence[]
+): ConstraintValidation {
+  // Simplified: only medical restrictions are checked for now  if (personnel.restrictions.length > 0) {
+    return { valid: false, reason: 'Restrictions médicales actives', severity: 'error' };
+  }
   return { valid: true, severity: 'warning' };
 }
