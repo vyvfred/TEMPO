@@ -126,12 +126,11 @@ function checkLegalConstraints(
   config: SolverConfig,
   absences: Absence[]
 ): { valid: boolean; reason?: string } {
-  // 1. Statut actif
-  if (!personnel.actif) {
-    return { valid: false, reason: "Personnel inactif" };
+  // 1. Employé indisponible (Inactif, non disponible ou en congé)
+  if (!personnel.actif || personnel.statut !== "disponible") {
+    return { valid: false, reason: "Employé indisponible" };
   }
 
-  // 2. Vérifier les absences planifiées pour cette date
   const hasAbsence = absences.some(
     (a) =>
       a.personnelId === personnel.id &&
@@ -139,10 +138,10 @@ function checkLegalConstraints(
       besoin.date <= a.dateFin
   );
   if (hasAbsence) {
-    return { valid: false, reason: "Personnel en congé/absent" };
+    return { valid: false, reason: "Employé indisponible (absence)" };
   }
 
-  // 3. Vérifier la double affectation le même jour
+  // 2. Double affectation le même jour
   const alreadyAssignedToday = besoins.some(
     (b) =>
       b.date === besoin.date &&
@@ -150,10 +149,21 @@ function checkLegalConstraints(
       b.personnelAffecte.includes(personnel.id)
   );
   if (alreadyAssignedToday) {
-    return { valid: false, reason: "Déjà affecté aujourd'hui" };
+    return { valid: false, reason: "Double affectation" };
   }
 
-  // 4. Vérifier le repos minimum entre deux postes (ex: Nuit -> Matin le lendemain)
+  // 3. Qualification insuffisante
+  const qualMap: Record<string, string[]> = {
+    ambulance: ["ADE"],
+    VSL: ["ADE", "VSL"],
+    taxi: ["ADE", "AA", "VSL", "REG"],
+  };
+  const requiredQuals = qualMap[besoin.typePoste] || ["ADE"];
+  if (!requiredQuals.includes(personnel.qualification.abreviation)) {
+    return { valid: false, reason: "Qualification insuffisante" };
+  }
+
+  // 4. Violation du repos minimum (ex: Nuit -> Matin le lendemain)
   if (besoin.quart === "matin") {
     const prevDate = new Date(besoin.date);
     prevDate.setDate(prevDate.getDate() - 1);
@@ -167,10 +177,7 @@ function checkLegalConstraints(
     );
 
     if (workedNightYesterday) {
-      return {
-        valid: false,
-        reason: `Repos insuffisant après une nuit (requis: ${config.legal.minRestBetweenShifts}h)`,
-      };
+      return { valid: false, reason: "Violation du repos minimum" };
     }
   }
 
