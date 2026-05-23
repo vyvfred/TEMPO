@@ -11,14 +11,14 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Settings, Shield, Clock, Moon, Sun, Users, 
   AlertTriangle, CheckCircle, Info, Save, RotateCcw,
-  Scale, Calendar, Lock, Unlock, RefreshCw
+  Scale, Calendar, Lock, Unlock, Sparkles, HardDriveDownload
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   SolverConfig, 
   DEFAULT_SOLVER_CONFIG, 
-  saveSolverConfig, 
-  loadSolverConfig 
+  loadSolverConfig, 
+  saveSolverConfig 
 } from '@/utils/solverConfig';
 
 export const ParametresSolveur: React.FC = () => {
@@ -28,7 +28,7 @@ export const ParametresSolveur: React.FC = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // Charger la config au montage
+  // Charger la conf au montage
   useEffect(() => {
     setConfig(loadSolverConfig());
   }, []);
@@ -89,9 +89,9 @@ export const ParametresSolveur: React.FC = () => {
             <Scale size={14} className="mr-2" />
             Équité
           </TabsTrigger>
-          <TabsTrigger value="verrouillage">
-            <Lock size={14} className="mr-2" />
-            Verrouillage
+          <TabsTrigger value="contrat">
+            <Calendar size={14} className="mr-2" />
+            Contrat
           </TabsTrigger>
         </TabsList>
 
@@ -180,7 +180,7 @@ export const ParametresSolveur: React.FC = () => {
             </div>
 
             <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2">
                 <AlertTriangle size={20} className="text-yellow-600 mt-0.5" />
                 <div>
                   <p className="font-medium text-text-main">Important</p>
@@ -345,6 +345,73 @@ export const ParametresSolveur: React.FC = () => {
           </Card>
         </TabsContent>
 
+        {/* Contrat */}
+        <TabsContent value="contrat">
+          <Card className="p-6 bg-surface border-border rounded-xl">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-indigo-50 rounded-xl">
+                <Calendar size={24} className="text-indigo-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-text-main">Contrôle des Heures & Jours</h3>
+                <p className="text-sm text-text-muted">Gestion des dépassements et déficits d'affectations</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 bg-bg rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Calendar size={20} className="text-accent" />
+                  <div>
+                    <p className="font-medium text-text-main">Activer le contrôle contrat</p>
+                    <p className="text-sm text-text-muted">Pénaliser les dépassements d'heures et jours</p>
+                  </div>
+                </div>
+                <Switch 
+                  checked={config.contract.enableContractCompliance}
+                  onCheckedChange={(v) => updateConfig('contract', 'enableContractCompliance', v)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="weeklyContractHours">Heures de contrat par semaine</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="weeklyContractHours"
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={config.contract.weeklyContractHours}
+                    onChange={(e) => updateConfig('contract', 'weeklyContractHours', parseInt(e.target.value))}
+                    className="w-24"
+                    disabled={!config.contract.enableContractCompliance}
+                  />
+                  <span className="text-text-muted">heures</span>
+                </div>
+                <p className="text-xs text-text-muted">Ex: 35 heures pour un temps complet</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="weeklyExpectedDays">Jours attendus par semaine</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="weeklyExpectedDays"
+                    type="number"
+                    min="0"
+                    max="7"
+                    value={config.contract.weeklyExpectedDays}
+                    onChange={(e) => updateConfig('contract', 'weeklyExpectedDays', parseInt(e.target.value))}
+                    className="w-24"
+                    disabled={!config.contract.enableContractCompliance}
+                  />
+                  <span className="text-text-muted">jours</span>
+                </div>
+                <p className="text-xs text-text-muted">Ex: 5 jours par semaine</p>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+
         {/* Verrouillage */}
         <TabsContent value="verrouillage">
           <Card className="p-6 bg-surface border-border rounded-xl">
@@ -425,13 +492,14 @@ export const ParametresSolveur: React.FC = () => {
       <Card className="mt-6 p-4 bg-blue-50 border-blue-200 rounded-xl">
         <div className="flex items-start gap-3">
           <Info size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-medium text-text-main mb-1">À propos du solveur multi-objectifs</h4>
-            <ul className="text-sm text-text-muted space-y-1">
+          <div className="text-sm text-text-muted space-y-1">
+            <h4 className="font-bold text-text-main text-xs mb-1">À propos du solveur multi-objectifs</h4>
+            <ul className="space-y-1">
               <li>• Le solveur optimise simultanément : équité, préférences, contraintes légales et qualification</li>
               <li>• Les contraintes légales sont TOUJOURS respectées (priorité absolue)</li>
               <li>• L'équité garantit une répartition équilibrée de la charge de travail</li>
               <li>• Les préférences sont un bonus, pas une obligation (sauf si configuré)</li>
+              <li>• Le contrôle contrat pénalise les dépassements d'heures et favorise les déficits</li>
             </ul>
           </div>
         </div>

@@ -35,6 +35,7 @@ export interface ScoringBreakdown {
   equityScore: number;
   preferenceScore: number;
   qualificationScore: number;
+  contractScore: number; // NEW: contract compliance score
   totalScore: number;
   softScore: number; // NEW: soft score components
 }
@@ -47,7 +48,8 @@ function calculateQualificationScore(
   besoin: Besoin
 ): number {
   const qualMap: Record<string, string[]> = {
-    ambulance: ["ADE"], // ADE requis pour ambulance    VSL: ["ADE", "VSL"], // ADE ou VSL pour VSL
+    ambulance: ["ADE"], // ADE requis pour ambulance
+    VSL: ["ADE", "VSL"], // ADE ou VSL pour VSL
     taxi: ["ADE", "AA", "VSL", "REG"], // Tous types pour taxi
   };
 
@@ -97,7 +99,8 @@ function calculatePreferenceScore(
 function calculateEquityScore(
   personnel: Personnel,
   allPersonnel: Personnel[],
-  config: SolverConfig): number {
+  config: SolverConfig
+): number {
   if (!config.equity.enableEquityScoring) return 0;
 
   // Plus le score d'équité est bas, plus la personne mérite des affectations
@@ -115,6 +118,123 @@ function calculateEquityScore(
 }
 
 /**
+ * Calcule le score de contrat pour une affectation
+ * - Pénalise les dépassements d'heures
+ * - Favorise les salariés en déficit d'heures
+ */
+function calculateContractScore(
+  personnel: Personnel,
+  besoin: Besoin,
+  allPersonnel: Personnel[],
+  config: SolverConfig
+): number {
+  if (!config.contract.enableContractCompliance) return 0;
+
+  // Calculer les heures planifiées par semaine pour ce salarié
+  const weeklyHours = getPlannedWeeklyHours(personnel, allPersonnel, besoin.date);
+  const weeklyDays = getPlannedWeeklyDays(personnel, allPersonnel, besoin.date);
+
+  // Heures de contrat attendues par semaine (environ 35h)
+  const contractHours = config.contract.weeklyContractHours || 35;
+  const expectedDays = config.contract.weeklyExpectedDays || 5;
+
+  // Écarts
+  const hoursGap = weeklyHours - contractHours;
+  const daysGap = weeklyDays - expectedDays;
+
+  // Pénalité pour dépassement d'heures (max -20)
+  const hoursPenalty = Math.max(0, hoursGap) * -2; // -2 points par heure de dépassement
+  const hoursReward = Math.min(0, hoursGap) * 2; // +2 points par heure de déficit
+
+  // Pénalité pour dépassement de jours (max -10)
+  const daysPenalty = Math.max(0, daysGap) * -2; // -2 points par jour de dépassement
+  const daysReward = Math.min(0, daysGap) * 2; // +2 points par jour de déficit
+
+  // Bonus si le salarié est en déficit global (encourage l'équilibre)
+  let deficitBonus = 0;
+  if (weeklyHours < contractHours * 0.9) {
+    deficitBonus = 5; // +5 points pour ceux en sous‑charge
+  }
+
+  // Alerte si l'écart est important
+  if (hoursGap > 10) {
+    console.warn(`⚠️ ${personnel.prenom} ${personnel.nom} dépasse de ${hoursGap} heures cette semaine`);
+  }
+
+  return hoursPenalty + hoursReward + daysPenalty + daysReward + deficitBonus;
+}
+
+/**
+ * Calcule le nombre d'heures planifiées par semaine pour un salarié
+ */
+function getPlannedWeeklyHours(
+  personnel: Personnel,
+  allPersonnel: Personnel[],
+  currentDate: string
+): number {
+  // Récupérer toutes les affectations de la semaine en cours
+  const weekStart = new Date(currentDate);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Lundi
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  const weekStartStr = weekStart.toISOString().split('T')[0];
+  const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+  // Compter les affectations dans la semaine
+  let totalHours = 0;
+  const allBesoins = getAllBesoins(); // Doit être récupéré du contexte
+
+  // Pour simplifier, on considère qu'une affectation = 8h par défaut
+  // Dans une version plus avancée, on pourrait utiliser la durée par besoin
+  allBesoins.forEach(b => {
+    if (b.personnelAffecte.includes(personnel.id) && b.date >= weekStartStr && b.date <= weekEndStr) {
+      totalHours += 8; // 8 heures par shift
+    }
+  });
+
+  return totalHours;
+}
+
+/**
+ * Calcule le nombre de jours planifiés par semaine pour un salarié
+ */
+function getPlannedWeeklyDays(
+  personnel: Personnel,
+  allPersonnel: Personnel[],
+  currentDate: string
+): number {
+  const weekStart = new Date(currentDate);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Lundi
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  const weekStartStr = weekStart.toISOString().split('T')[0];
+  const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+  // Compter les jours avec au moins une affectation dans la semaine
+  const daysSet = new Set<string>();
+  const allBesoins = getAllBesoins();
+
+  allBesoins.forEach(b => {
+    if (b.personnelAffecte.includes(personnel.id) && b.date >= weekStartStr && b.date <= weekEndStr) {
+      daysSet.add(b.date);
+    }
+  });
+
+  return daysSet.size;
+}
+
+/**
+ * Récupère tous les besoins (mock pour l'exemple, à adapter avec le contexte réel)
+ */
+function getAllBesoins(): Besoin[] {
+  // Dans l'implémentation réelle, cette fonction devrait être remplacée
+  // par un accès au state via un contexte ou un store
+  throw new Error("getAllBesoins must be implemented with real data access");
+}
+
+/**
  * Évalue les composantes soft (fairness, night distribution, overtime, preferences)
  * Simple implementation returning extra points (0‑20)
  */
@@ -127,7 +247,7 @@ function calculateSoftScore(
   let soft = 0;
 
   // 1. Fairness – reward when affectation count is close to the minimum
-  const minAffect = Math.min(...allPersonnel.map((p) => p.affectationsCount));
+  const minAffect = Math.min(...allPersonnel.map(p => p.affectationsCount));
   const diffToMin = personnel.affectationsCount - minAffect;
   // smaller diff → higher soft score (up to 5 points)
   soft += Math.max(0, 5 - Math.abs(diffToMin));
@@ -142,7 +262,8 @@ function calculateSoftScore(
     soft -= 2; // small penalty
   }
 
-  // 4. Preference bonus already partially covered above, but also reward  //    employees who have any preference when the need matches it
+  // 4. Preference bonus already partially covered above, but also reward
+  //    employees who have any preference when the need matches it
   if (
     (besoin.quart === "nuit" && personnel.preferenciasNuit) ||
     (besoin.quart === "apres-midi" && personnel.preferenciasWE)
@@ -166,12 +287,17 @@ function calculateTotalScore(
   // Score de base
   const baseScore = 50;
 
-  // Score d'équité  const equityScore = calculateEquityScore(personnel, allPersonnel, config);
+  // Score d'équité
+  const equityScore = calculateEquityScore(personnel, allPersonnel, config);
 
   // Score de préférence (hard preference bonus)
   const preferenceScore = calculatePreferenceScore(personnel, besoin, config);
 
-  // Score de qualification  const qualificationScore = calculateQualificationScore(personnel, besoin);
+  // Score de qualification
+  const qualificationScore = calculateQualificationScore(personnel, besoin);
+
+  // Score de contrat (heures et jours)
+  const contractScore = calculateContractScore(personnel, besoin, allPersonnel, config);
 
   // Soft score (fairness, night distribution, overtime, etc.)
   const softScore = calculateSoftScore(
@@ -186,7 +312,7 @@ function calculateTotalScore(
     0,
     Math.min(
       100,
-      baseScore + equityScore + preferenceScore + qualificationScore + softScore
+      baseScore + equityScore + preferenceScore + qualificationScore + contractScore + softScore
     )
   );
 
@@ -195,6 +321,7 @@ function calculateTotalScore(
     equityScore,
     preferenceScore,
     qualificationScore,
+    contractScore,
     totalScore,
     softScore, // expose soft components
   };
@@ -261,6 +388,7 @@ function solveForNeed(
         score.equityScore > 0 ? "Équité respectée" : "",
         score.preferenceScore > 0 ? "Préférence respectée" : "",
         score.qualificationScore > 0 ? "Qualification adaptée" : "",
+        score.contractScore > 0 ? "Contrat équilibré" : "",
       ].filter(Boolean),
       locked: false,
     });
@@ -270,10 +398,12 @@ function solveForNeed(
 }
 
 /**
- * SOLVEUR PRINCIPAL - Génère le planning optimisé */
+ * SOLVEUR PRINCIPAL - Génère le planning optimisé
+ */
 export function solvePlanning(
   state: AppState,
-  config?: SolverConfig): SolverResult {
+  config?: SolverConfig
+): SolverResult {
   const startTime = performance.now();
   const solverConfig = config || loadSolverConfig();
 
@@ -396,7 +526,8 @@ export function applySolverResults(
  */
 export function* solvePlanningStepByStep(
   state: AppState,
-  config?: SolverConfig): Generator<
+  config?: SolverConfig
+): Generator<
   {
     step: number;
     type: "candidate" | "assignment" | "warning" | "complete";

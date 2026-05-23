@@ -1,37 +1,16 @@
-/**
- * Configuration du Solveur de Planning
- * Gère les paramètres de contraintes, préférences, équité et verrouillage
- */
+import { SolverLegalConstraints, SolverPreferences, SolverEquity, SolverLocking } from "./solverConfig";
 
-// Types pour la configuration
-export interface SolverLegalConstraints {
-  maxHoursPerDay: number;      // Heures max par jour
-  maxHoursPerWeek: number;     // Heures max par semaine
-  minRestBetweenShifts: number; // Repos minimum entre postes (heures)
-  maxConsecutiveNights: number; // Nuits consécutives max
-}
-
-export interface SolverPreferences {
-  respectPreferences: boolean; // Respecter les préférences
-  nightPreferenceBonus: number; // Bonus préférence nuit (points)
-  wePreferenceBonus: number;    // Bonus préférence week-end (points)
-}
-
-export interface SolverEquity {
-  enableEquityScoring: boolean; // Activer le scoring d'équité
-  equityWeight: number;          // Pondération équité (0-100%)
-  maxAffectationGap: number;    // Écart max d'affectations
-}
-
-export interface SolverLocking {
-  allowManualOverride: boolean;     // Autoriser les overrides manuels
-  lockGeneratedAssignments: boolean; // Verrouiller après génération
+export interface SolverContract {
+  enableContractCompliance: boolean; // Activer le contrôle contrat
+  weeklyContractHours: number; // Heures de contrat par semaine (ex: 35h)
+  weeklyExpectedDays: number; // Jours de travail attendus par semaine (ex: 5)
 }
 
 export interface SolverConfig {
   legal: SolverLegalConstraints;
   preferences: SolverPreferences;
   equity: SolverEquity;
+  contract: SolverContract; // Ajout du contrôle contrat
   locking: SolverLocking;
 }
 
@@ -53,6 +32,11 @@ export const DEFAULT_SOLVER_CONFIG: SolverConfig = {
     equityWeight: 30,
     maxAffectationGap: 5,
   },
+  contract: {
+    enableContractCompliance: true, // Activer le contrôle contrat
+    weeklyContractHours: 35, // Heures de contrat par semaine
+    weeklyExpectedDays: 5, // Jours de travail attendus par semaine
+  },
   locking: {
     allowManualOverride: true,
     lockGeneratedAssignments: false,
@@ -71,6 +55,7 @@ export function loadSolverConfig(): SolverConfig {
         legal: { ...DEFAULT_SOLVER_CONFIG.legal, ...parsed.legal },
         preferences: { ...DEFAULT_SOLVER_CONFIG.preferences, ...parsed.preferences },
         equity: { ...DEFAULT_SOLVER_CONFIG.equity, ...parsed.equity },
+        contract: { ...DEFAULT_SOLVER_CONFIG.contract, ...parsed.contract },
         locking: { ...DEFAULT_SOLVER_CONFIG.locking, ...parsed.locking },
       };
     }
