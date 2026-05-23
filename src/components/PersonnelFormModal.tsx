@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
 interface PersonnelFormModalProps {
@@ -35,8 +36,9 @@ export const PersonnelFormModal: React.FC<PersonnelFormModalProps> = ({
   const [preferenciasNuit, setPreferenciasNuit] = useState(false);
   const [preferenciasWE, setPreferenciasWE] = useState(false);
   const [restrictions, setRestrictions] = useState('');
+  const [weeklyContractHours, setWeeklyContractHours] = useState('35');
+  const [weeklyExpectedDays, setWeeklyExpectedDays] = useState('5');
 
-  // Synchroniser les états locaux avec personnelToEdit quand il change
   useEffect(() => {
     if (personnelToEdit) {
       setNom(personnelToEdit.nom || '');
@@ -49,8 +51,9 @@ export const PersonnelFormModal: React.FC<PersonnelFormModalProps> = ({
       setPreferenciasNuit(personnelToEdit.preferenciasNuit || false);
       setPreferenciasWE(personnelToEdit.preferenciasWE || false);
       setRestrictions(personnelToEdit.restrictions.join(', ') || '');
+      setWeeklyContractHours(personnelToEdit.weeklyContractHours?.toString() || '35');
+      setWeeklyExpectedDays(personnelToEdit.weeklyExpectedDays?.toString() || '5');
     } else {
-      // Reset pour un nouveau personnel
       setNom('');
       setPrenom('');
       setDateNaissance('');
@@ -61,6 +64,8 @@ export const PersonnelFormModal: React.FC<PersonnelFormModalProps> = ({
       setPreferenciasNuit(false);
       setPreferenciasWE(false);
       setRestrictions('');
+      setWeeklyContractHours('35');
+      setWeeklyExpectedDays('5');
     }
   }, [personnelToEdit, state.qualifications, state.bureaux]);
 
@@ -95,6 +100,8 @@ export const PersonnelFormModal: React.FC<PersonnelFormModalProps> = ({
       affectationsCount: personnelToEdit?.affectationsCount || 0,
       equidadScore: personnelToEdit?.equidadScore || 100,
       statut: personnelToEdit?.statut || 'disponible' as const,
+      weeklyContractHours: parseInt(weeklyContractHours, 10) || 35,
+      weeklyExpectedDays: parseInt(weeklyExpectedDays, 10) || 5,
     };
 
     if (isEditing) {
@@ -124,6 +131,8 @@ export const PersonnelFormModal: React.FC<PersonnelFormModalProps> = ({
     setPreferenciasNuit(false);
     setPreferenciasWE(false);
     setRestrictions('');
+    setWeeklyContractHours('35');
+    setWeeklyExpectedDays('5');
   };
 
   const handleClose = () => {
@@ -148,59 +157,64 @@ export const PersonnelFormModal: React.FC<PersonnelFormModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-text-main mb-1 block">Prénom *</label>
+              <Label>Prénom *</Label>
               <Input
                 value={prenom}
                 onChange={(e) => setPrenom(e.target.value)}
                 placeholder="Prénom"
                 required
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-text-main mb-1 block">Nom *</label>
+              <Label>Nom *</Label>
               <Input
                 value={nom}
                 onChange={(e) => setNom(e.target.value)}
                 placeholder="Nom"
                 required
+                className="mt-1"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-text-main mb-1 block">Date de naissance</label>
+              <Label>Date de naissance</Label>
               <Input
                 type="date"
                 value={dateNaissance}
                 onChange={(e) => setDateNaissance(e.target.value)}
+                className="mt-1"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-text-main mb-1 block">Téléphone</label>
+              <Label>Téléphone</Label>
               <Input
                 value={telephone}
                 onChange={(e) => setTelephone(e.target.value)}
                 placeholder="06 XX XX XX XX"
+                className="mt-1"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-sm font-medium text-text-main mb-1 block">Email</label>
+            <Label>Email</Label>
             <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="email@exemple.fr"
+              className="mt-1"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-text-main mb-1 block">Qualification *</label>
+              <Label>Qualification *</Label>
               <Select value={qualificationId} onValueChange={setQualificationId}>
-                <SelectTrigger>
+                <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -213,9 +227,9 @@ export const PersonnelFormModal: React.FC<PersonnelFormModalProps> = ({
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium text-text-main mb-1 block">Bureau *</label>
+              <Label>Bureau *</Label>
               <Select value={bureauId} onValueChange={setBureauId}>
-                <SelectTrigger>
+                <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -227,12 +241,41 @@ export const PersonnelFormModal: React.FC<PersonnelFormModalProps> = ({
             </div>
           </div>
 
+          {/* Contract fields */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Heures contrat / semaine</Label>
+              <Input
+                type="number"
+                min="0"
+                max="60"
+                value={weeklyContractHours}
+                onChange={(e) => setWeeklyContractHours(e.target.value)}
+                placeholder="35"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Jours attendus / semaine</Label>
+              <Input
+                type="number"
+                min="0"
+                max="7"
+                value={weeklyExpectedDays}
+                onChange={(e) => setWeeklyExpectedDays(e.target.value)}
+                placeholder="5"
+                className="mt-1"
+              />
+            </div>
+          </div>
+
           <div>
-            <label className="text-sm font-medium text-text-main mb-1 block">Restrictions médicales</label>
+            <Label>Restrictions médicales</Label>
             <Input
               value={restrictions}
               onChange={(e) => setRestrictions(e.target.value)}
               placeholder="Ex: Dos, Cardiaque (séparées par des virgules)"
+              className="mt-1"
             />
           </div>
 
@@ -245,7 +288,7 @@ export const PersonnelFormModal: React.FC<PersonnelFormModalProps> = ({
                 onChange={(e) => setPreferenciasNuit(e.target.checked)}
                 className="w-4 h-4 rounded border-gray-300"
               />
-              <label htmlFor="preferenciasNuit" className="text-sm text-text-main cursor-pointer">
+              <label htmlFor="preferenciasNuit" className="text-sm cursor-pointer">
                 Prefère les nuits
               </label>
             </div>
@@ -257,7 +300,7 @@ export const PersonnelFormModal: React.FC<PersonnelFormModalProps> = ({
                 onChange={(e) => setPreferenciasWE(e.target.checked)}
                 className="w-4 h-4 rounded border-gray-300"
               />
-              <label htmlFor="preferenciasWE" className="text-sm text-text-main cursor-pointer">
+              <label htmlFor="preferenciasWE" className="text-sm cursor-pointer">
                 Prefère les week-ends
               </label>
             </div>

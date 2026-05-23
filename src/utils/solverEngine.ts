@@ -92,14 +92,30 @@ function getPlannedWeeklyDays(personnel: Personnel, besoins: Besoin[], currentDa
   return days.size;
 }
 
-function calculateContractScore(personnel: Personnel, besoin: Besoin, besoins: Besoin[], config: SolverConfig): number {
+/**
+ * Calcule le score de contrat pour une affectation
+ * Utilise les champs weeklyContractHours et weeklyExpectedDays du Personnel
+ * - Pénalise les dépassements d'heures
+ * - Favorise les salariés en déficit d'heures
+ */
+function calculateContractScore(
+  personnel: Personnel,
+  besoin: Besoin,
+  besoins: Besoin[],
+  config: SolverConfig
+): number {
   if (!config.contract.enableContractCompliance) return 0;
+
   const weeklyHours = getPlannedWeeklyHours(personnel, besoins, besoin.date);
   const weeklyDays = getPlannedWeeklyDays(personnel, besoins, besoin.date);
-  const contractHours = config.contract.weeklyContractHours || 35;
-  const expectedDays = config.contract.weeklyExpectedDays || 5;
+
+  // Utilise les champs individuels du personnel
+  const contractHours = personnel.weeklyContractHours || 35;
+  const expectedDays = personnel.weeklyExpectedDays || 5;
+
   const hoursGap = weeklyHours - contractHours;
   const daysGap = weeklyDays - expectedDays;
+
   let score = 0;
   score += Math.max(0, hoursGap) * -2;
   score += Math.min(0, hoursGap) * 2;
