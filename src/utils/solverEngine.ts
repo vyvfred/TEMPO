@@ -1,12 +1,11 @@
+import { SolverConfig, loadSolverConfig } from "./solverConfig";
+import type { Personnel, Besoin, AppState, Absence } from "@/store/AppContext";
+
 /**
  * Moteur de Solveur Multi-Objectifs
  * Implémente l'algorithme de résolution pour l'affectation du personnel
  */
 
-import { SolverConfig, loadSolverConfig } from "./solverConfig";
-import type { Personnel, Besoin, AppState, Absence } from "@/store/AppContext";
-
-// Types pour le solveur
 export interface Assignment {
   besoinId: string;
   personnelId: string;
@@ -37,6 +36,7 @@ export interface ScoringBreakdown {
   preferenceScore: number;
   qualificationScore: number;
   totalScore: number;
+  softScore: number; // NEW: soft score components
 }
 
 /**
@@ -47,8 +47,7 @@ function calculateQualificationScore(
   besoin: Besoin
 ): number {
   const qualMap: Record<string, string[]> = {
-    ambulance: ["ADE"], // ADE requis pour ambulance
-    VSL: ["ADE", "VSL"], // ADE ou VSL pour VSL
+    ambulance: ["ADE"], // ADE requis pour ambulance    VSL: ["ADE", "VSL"], // ADE ou VSL pour VSL
     taxi: ["ADE", "AA", "VSL", "REG"], // Tous types pour taxi
   };
 
@@ -98,8 +97,7 @@ function calculatePreferenceScore(
 function calculateEquityScore(
   personnel: Personnel,
   allPersonnel: Personnel[],
-  config: SolverConfig
-): number {
+  config: SolverConfig): number {
   if (!config.equity.enableEquityScoring) return 0;
 
   // Plus le score d'équité est bas, plus la personne mérite des affectations
@@ -117,110 +115,42 @@ function calculateEquityScore(
 }
 
 /**
- * Vérifie les contraintes légales strictes (Hard Constraints)
+ * Évalue les composantes soft (fairness, night distribution, overtime, preferences)
+ * Simple implementation returning extra points (0‑20)
  */
-function checkLegalConstraints(
+function calculateSoftScore(
   personnel: Personnel,
-  besoins: Besoin[],
   besoin: Besoin,
-  config: SolverConfig,
-  absences: Absence[]
-): { valid: boolean; reason?: string } {
-  // 1. Employé indisponible (Inactif, non disponible ou en congé)
-  if (!personnel.actif || personnel.statut !== "disponible") {
-    return { valid: false, reason: "Employé indisponible" };
+  allPersonnel: Personnel[],
+  config: SolverConfig
+): number {
+  let soft = 0;
+
+  // 1. Fairness – reward when affectation count is close to the minimum
+  const minAffect = Math.min(...allPersonnel.map((p) => p.affectationsCount));
+  const diffToMin = personnel.affectationsCount - minAffect;
+  // smaller diff → higher soft score (up to 5 points)
+  soft += Math.max(0, 5 - Math.abs(diffToMin));
+
+  // 2. Night distribution – bonus if the need is night and employee prefers night
+  if (besoin.quart === "nuit" && personnel.preferenciasNuit) {
+    soft += 3; // night‑preference bonus
   }
 
-  const hasAbsence = absences.some(
-    (a) =>
-      a.personnelId === personnel.id &&
-      besoin.date >= a.dateDebut &&
-      besoin.date <= a.dateFin
-  );
-  if (hasAbsence) {
-    return { valid: false, reason: "Employé indisponible (absence)" };
+  // 3. Overtime penalty – penalize heavy load (more than 5 assignments)
+  if (personnel.affectationsCount > 5) {
+    soft -= 2; // small penalty
   }
 
-  // 2. Double affectation le même jour
-  const alreadyAssignedToday = besoins.some(
-    (b) =>
-      b.date === besoin.date &&
-      b.id !== besoin.id &&
-      b.personnelAffecte.includes(personnel.id)
-  );
-  if (alreadyAssignedToday) {
-    return { valid: false, reason: "Double affectation" };
+  // 4. Preference bonus already partially covered above, but also reward  //    employees who have any preference when the need matches it
+  if (
+    (besoin.quart === "nuit" && personnel.preferenciasNuit) ||
+    (besoin.quart === "apres-midi" && personnel.preferenciasWE)
+  ) {
+    soft += 2;
   }
 
-  // 3. Qualification insuffisante
-  const qualMap: Record<string, string[]> = {
-    ambulance: ["ADE"],
-    VSL: ["ADE", "VSL"],
-    taxi: ["ADE", "AA", "VSL", "REG"],
-  };
-  const requiredQuals = qualMap[besoin.typePoste] || ["ADE"];
-  if (!requiredQuals.includes(personnel.qualification.abreviation)) {
-    return { valid: false, reason: "Qualification insuffisante" };
-  }
-
-  // 4. Violation du repos minimum (ex: Nuit -> Matin le lendemain)
-  if (besoin.quart === "matin") {
-    const prevDate = new Date(besoin.date);
-    prevDate.setDate(prevDate.getDate() - 1);
-    const prevDateStr = prevDate.toISOString().split("T")[0];
-
-    const workedNightYesterday = besoins.some(
-      (b) =>
-        b.date === prevDateStr &&
-        b.quart === "nuit" &&
-        b.personnelAffecte.includes(personnel.id)
-    );
-
-    if (workedNightYesterday) {
-      return { valid: false, reason: "Violation du repos minimum" };
-    }
-  }
-
-  // 5. Vérifier les nuits consécutives
-  if (besoin.quart === "nuit") {
-    let consecutiveNights = 0;
-    const checkDate = new Date(besoin.date);
-
-    for (let i = 1; i <= config.legal.maxConsecutiveNights; i++) {
-      checkDate.setDate(checkDate.getDate() - 1);
-      const checkDateStr = checkDate.toISOString().split("T")[0];
-
-      const workedNight = besoins.some(
-        (b) =>
-          b.date === checkDateStr &&
-          b.quart === "nuit" &&
-          b.personnelAffecte.includes(personnel.id)
-      );
-
-      if (workedNight) {
-        consecutiveNights++;
-      } else {
-        break;
-      }
-    }
-
-    if (consecutiveNights >= config.legal.maxConsecutiveNights) {
-      return {
-        valid: false,
-        reason: `Max ${config.legal.maxConsecutiveNights} nuits consécutives atteint`,
-      };
-    }
-  }
-
-  // 6. Restrictions médicales
-  if (personnel.restrictions.length > 0) {
-    return {
-      valid: false,
-      reason: `Restrictions médicales: ${personnel.restrictions.join(", ")}`,
-    };
-  }
-
-  return { valid: true };
+  return soft;
 }
 
 /**
@@ -236,21 +166,27 @@ function calculateTotalScore(
   // Score de base
   const baseScore = 50;
 
-  // Score d'équité
-  const equityScore = calculateEquityScore(personnel, allPersonnel, config);
+  // Score d'équité  const equityScore = calculateEquityScore(personnel, allPersonnel, config);
 
-  // Score de préférences
+  // Score de préférence (hard preference bonus)
   const preferenceScore = calculatePreferenceScore(personnel, besoin, config);
 
-  // Score de qualification
-  const qualificationScore = calculateQualificationScore(personnel, besoin);
+  // Score de qualification  const qualificationScore = calculateQualificationScore(personnel, besoin);
 
-  // Score total
+  // Soft score (fairness, night distribution, overtime, etc.)
+  const softScore = calculateSoftScore(
+    personnel,
+    besoin,
+    allPersonnel,
+    config
+  );
+
+  // Total score (capped at 100)
   const totalScore = Math.max(
     0,
     Math.min(
       100,
-      baseScore + equityScore + preferenceScore + qualificationScore
+      baseScore + equityScore + preferenceScore + qualificationScore + softScore
     )
   );
 
@@ -260,6 +196,7 @@ function calculateTotalScore(
     preferenceScore,
     qualificationScore,
     totalScore,
+    softScore, // expose soft components
   };
 }
 
@@ -273,18 +210,17 @@ function generateCandidates(
   config: SolverConfig,
   absences: Absence[]
 ): Array<{ personnel: Personnel; score: ScoringBreakdown }> {
-  const candidates: Array<{ personnel: Personnel; score: ScoringBreakdown }> =
-    [];
+  const candidates: Array<{ personnel: Personnel; score: ScoringBreakdown }> = [];
 
   for (const p of personnel) {
-    // Ne pas ré-affecter déjà affecté
+    // Ne pas ré‑affecter déjà affecté
     if (besoin.personnelAffecte.includes(p.id)) continue;
 
     // Vérifier les contraintes légales strictes
     const constraints = checkLegalConstraints(p, allBesoins, besoin, config, absences);
     if (!constraints.valid) continue;
 
-    // Calculer le score
+    // Calculer le score (inclut soft components)
     const score = calculateTotalScore(p, besoin, personnel, allBesoins, config);
     candidates.push({ personnel: p, score });
   }
@@ -334,24 +270,22 @@ function solveForNeed(
 }
 
 /**
- * SOLVEUR PRINCIPAL - Génère le planning optimisé
- */
+ * SOLVEUR PRINCIPAL - Génère le planning optimisé */
 export function solvePlanning(
   state: AppState,
-  config?: SolverConfig
-): SolverResult {
+  config?: SolverConfig): SolverResult {
   const startTime = performance.now();
   const solverConfig = config || loadSolverConfig();
 
   const { besoins, personnel, absences } = state;
   const date = state.selectedDate;
 
-  // Filtrer les besoins pour la date sélectionnée
+  // Filter needs for the selected date
   const needsForDate = besoins.filter(
     (b) => b.date === date && b.statut !== "complete"
   );
 
-  // Personnel disponible trié par score d'équité (les plus nécessiteux en premier)
+  // Available personnel sorted by current load (fewest assignments first)
   const availablePersonnel = [...personnel]
     .filter((p) => p.statut === "disponible" && p.actif)
     .sort((a, b) => a.affectationsCount - b.affectationsCount);
@@ -361,13 +295,13 @@ export function solvePlanning(
   const warnings: string[] = [];
   const errors: string[] = [];
 
-  // Traiter chaque besoin
+  // Process each need
   for (const besoin of needsForDate) {
     const needed = besoin.personnelRequis - besoin.personnelAffecte.length;
 
     if (needed <= 0) continue;
 
-    // Résoudre pour ce besoin
+    // Solve for this need
     const needAssignments = solveForNeed(
       besoin,
       availablePersonnel,
@@ -386,7 +320,7 @@ export function solvePlanning(
     allAssignments.push(...needAssignments);
   }
 
-  // Vérifier l'écart d'équité
+  // Check equity gap
   if (solverConfig.equity.enableEquityScoring) {
     const assignedIds = allAssignments.map((a) => a.personnelId);
     const assignedCounts = new Map<string, number>();
@@ -407,7 +341,7 @@ export function solvePlanning(
     }
   }
 
-  // Calculer les statistiques
+  // Compute statistics
   const coveredNeeds = needsForDate.filter((b) => {
     const assigned = allAssignments.filter((a) => a.besoinId === b.id).length;
     const total = b.personnelAffecte.length + assigned;
@@ -440,7 +374,7 @@ export function solvePlanning(
 }
 
 /**
- * Applique les résultats du solveur à l'état de l'application
+ * Applies solver results to the application state
  */
 export function applySolverResults(
   result: SolverResult,
@@ -458,12 +392,11 @@ export function applySolverResults(
 }
 
 /**
- * Mode pas à pas - retourne un seul candidat à la fois
+ * Step‑by‑step solver – yields one candidate at a time
  */
 export function* solvePlanningStepByStep(
   state: AppState,
-  config?: SolverConfig
-): Generator<
+  config?: SolverConfig): Generator<
   {
     step: number;
     type: "candidate" | "assignment" | "warning" | "complete";
@@ -476,9 +409,11 @@ export function* solvePlanningStepByStep(
   const { besoins, personnel, absences } = state;
   const date = state.selectedDate;
 
+  // Filter needs for the selected date
   const needsForDate = besoins.filter(
     (b) => b.date === date && b.statut !== "complete"
   );
+
   const availablePersonnel = [...personnel]
     .filter((p) => p.statut === "disponible" && p.actif)
     .sort((a, b) => a.affectationsCount - b.affectationsCount);
