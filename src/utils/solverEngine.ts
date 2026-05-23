@@ -2,7 +2,7 @@ import { SolverConfig, loadSolverConfig } from "./solverConfig";
 import type { Personnel, Besoin, AppState, Absence } from "@/store/AppContext";
 
 /**
- * Moteur de Solveur Multi‑Objectifs
+ * Moteur de Solveur Multi-Objectifs
  * Implémente l'algorithme de résolution pour l'affectation du personnel
  */
 
@@ -36,33 +36,32 @@ export interface ScoringBreakdown {
   preferenceScore: number;
   qualificationScore: number;
   totalScore: number;
-  softScore: number; // components of the soft score}
-
-/* -------------------------------------------------------------------------- */
-/* 1️⃣  Scores de base                                                                      */
-/* -------------------------------------------------------------------------- */
+  softScore: number; // NEW: soft score components
+}
 
 /**
- * Score lié à la qualification du personnel pour le besoin.
+ * Calcule le score de qualification pour une affectation
  */
 function calculateQualificationScore(
   personnel: Personnel,
   besoin: Besoin
 ): number {
   const qualMap: Record<string, string[]> = {
-    ambulance: ["ADE"],
-    VSL: ["ADE", "VSL"],
-    taxi: ["ADE", "AA", "VSL", "REG"],
+    ambulance: ["ADE"], // ADE requis pour ambulance    VSL: ["ADE", "VSL"], // ADE ou VSL pour VSL
+    taxi: ["ADE", "AA", "VSL", "REG"], // Tous types pour taxi
   };
 
   const requiredQuals = qualMap[besoin.typePoste] || ["ADE"];
   const personnelQual = personnel.qualification.abreviation;
 
-  return requiredQuals.includes(personnelQual) ? 20 : -20;
+  if (requiredQuals.includes(personnelQual)) {
+    return 20; // Qualification parfaite
+  }
+  return -20; // Qualification non adaptée
 }
 
 /**
- * Score de préférence (night / week‑end) – valeur dure.
+ * Calcule le score de préférence pour une affectation
  */
 function calculatePreferenceScore(
   personnel: Personnel,
@@ -80,7 +79,7 @@ function calculatePreferenceScore(
     reasons.push(`+${config.preferences.nightPreferenceBonus} préf. nuit`);
   }
 
-  // Préférence week‑end
+  // Préférence week-end
   const isWeekend =
     new Date(besoin.date).getDay() === 0 ||
     new Date(besoin.date).getDay() === 6;
@@ -93,29 +92,31 @@ function calculatePreferenceScore(
 }
 
 /**
- * Score d'équité – incite à équilibrer la charge.
+ * Calcule le score d'équité pour une affectation
  */
 function calculateEquityScore(
   personnel: Personnel,
   allPersonnel: Personnel[],
-  config: SolverConfig
-): number {
+  config: SolverConfig): number {
   if (!config.equity.enableEquityScoring) return 0;
 
+  // Plus le score d'équité est bas, plus la personne mérite des affectations
   const equityWeight = config.equity.equityWeight / 100;
   const maxAffectations = Math.max(
     ...allPersonnel.map((p) => p.affectationsCount)
   );
   const currentAffectations = personnel.affectationsCount;
 
+  // Score basé sur la différence avec le max
   if (maxAffectations === 0) return 50;
+
   const gapRatio = 1 - currentAffectations / maxAffectations;
   return gapRatio * 50 * equityWeight;
 }
 
 /**
- * Score « soft » : fairness, night distribution, overtime penalty,
- * et bonus de préférence lorsqu’ils coïncident avec le besoin.
+ * Évalue les composantes soft (fairness, night distribution, overtime, preferences)
+ * Simple implementation returning extra points (0‑20)
  */
 function calculateSoftScore(
   personnel: Personnel,
@@ -125,23 +126,23 @@ function calculateSoftScore(
 ): number {
   let soft = 0;
 
-  // 1️⃣ Fairness – reward when the employee is close to the minimum load
+  // 1. Fairness – reward when affectation count is close to the minimum
   const minAffect = Math.min(...allPersonnel.map((p) => p.affectationsCount));
   const diffToMin = personnel.affectationsCount - minAffect;
-  // smaller diff → higher soft score (max 5 points)
+  // smaller diff → higher soft score (up to 5 points)
   soft += Math.max(0, 5 - Math.abs(diffToMin));
 
-  // 2️⃣ Night distribution – bonus if the shift is night and the employee prefers night
+  // 2. Night distribution – bonus if the need is night and employee prefers night
   if (besoin.quart === "nuit" && personnel.preferenciasNuit) {
     soft += 3; // night‑preference bonus
   }
 
-  // 3️⃣ Overtime penalty – penalise heavy load (> 5 assignments)
+  // 3. Overtime penalty – penalize heavy load (more than 5 assignments)
   if (personnel.affectationsCount > 5) {
     soft -= 2; // small penalty
   }
 
-  // 4️⃣ Additional preference bonus when the shift matches a declared preference
+  // 4. Preference bonus already partially covered above, but also reward  //    employees who have any preference when the need matches it
   if (
     (besoin.quart === "nuit" && personnel.preferenciasNuit) ||
     (besoin.quart === "apres-midi" && personnel.preferenciasWE)
@@ -153,7 +154,7 @@ function calculateSoftScore(
 }
 
 /**
- * Score total d’une affectation candidate (capped at 100).
+ * Calcule le score total pour une affectation candidate
  */
 function calculateTotalScore(
   personnel: Personnel,
@@ -162,22 +163,31 @@ function calculateTotalScore(
   besoins: Besoin[],
   config: SolverConfig
 ): ScoringBreakdown {
+  // Score de base
   const baseScore = 50;
 
-  const equityScore = calculateEquityScore(personnel, allPersonnel, config);
+  // Score d'équité  const equityScore = calculateEquityScore(personnel, allPersonnel, config);
+
+  // Score de préférence (hard preference bonus)
   const preferenceScore = calculatePreferenceScore(personnel, besoin, config);
-  const qualificationScore = calculateQualificationScore(personnel, besoin);
+
+  // Score de qualification  const qualificationScore = calculateQualificationScore(personnel, besoin);
+
+  // Soft score (fairness, night distribution, overtime, etc.)
   const softScore = calculateSoftScore(
     personnel,
     besoin,
     allPersonnel,
-    config  );
+    config
+  );
 
+  // Total score (capped at 100)
   const totalScore = Math.max(
     0,
     Math.min(
       100,
-      baseScore + equityScore + preferenceScore + qualificationScore + softScore    )
+      baseScore + equityScore + preferenceScore + qualificationScore + softScore
+    )
   );
 
   return {
@@ -186,37 +196,12 @@ function calculateTotalScore(
     preferenceScore,
     qualificationScore,
     totalScore,
-    softScore,
+    softScore, // expose soft components
   };
 }
 
-/* -------------------------------------------------------------------------- */
-/* 2️⃣  Candidate generation & need solving                                      */
-/* -------------------------------------------------------------------------- */
-
 /**
- * Vérifie les contraintes légales d’un salarié pour un besoin donné.
- * Retourne toujours valide dans cette implémentation simplifiée.
- */
-function checkLegalConstraints(
-  personnel: Personnel,
-  allBesoins: Besoin[],
-  besoin: Besoin,
-  config: SolverConfig,
-  absences: Absence[]
-): { valid: boolean; reason?: string } {
-  // Exemple de contrainte : aucune restriction médicale active ne doit bloquer
-  // une affectation immédiate.  (Vous pouvez l’enrichir selon vos besoins.)
-  const hasActiveRestriction = personnel.restrictions.length > 0;
-  if (hasActiveRestriction) {
-    return { valid: false, reason: "Restriction médicale active" };
-  }
-  return { valid: true };
-}
-
-/**
- * Génère tous les candidats possibles pour un besoin.
- * Chaque candidat est un couple { personnel, score }.
+ * Génère tous les candidats possibles pour un besoin
  */
 function generateCandidates(
   besoin: Besoin,
@@ -228,26 +213,26 @@ function generateCandidates(
   const candidates: Array<{ personnel: Personnel; score: ScoringBreakdown }> = [];
 
   for (const p of personnel) {
-    // Ne pas ré‑affecter un personnel déjà affecté à ce besoin
+    // Ne pas ré‑affecter déjà affecté
     if (besoin.personnelAffecte.includes(p.id)) continue;
 
-    // Appliquer les contraintes légales
+    // Vérifier les contraintes légales strictes
     const constraints = checkLegalConstraints(p, allBesoins, besoin, config, absences);
     if (!constraints.valid) continue;
 
-    // Calculer le score (inclut les composantes soft)
+    // Calculer le score (inclut soft components)
     const score = calculateTotalScore(p, besoin, personnel, allBesoins, config);
     candidates.push({ personnel: p, score });
   }
 
-  // Trier du meilleur score au pire
+  // Trier par score décroissant
   candidates.sort((a, b) => b.score.totalScore - a.score.totalScore);
+
   return candidates;
 }
 
 /**
- * Résout l'affectation pour un besoin donné.
- * Retourne un tableau d'Affectation (une par salarié affecté).
+ * Résout le problème d'affectation pour un besoin spécifique
  */
 function solveForNeed(
   besoin: Besoin,
@@ -261,12 +246,13 @@ function solveForNeed(
 
   if (needed <= 0) return assignments;
 
-  // Générer les candidats classés par score
+  // Générer les candidats
   const candidates = generateCandidates(besoin, personnel, allBesoins, config, absences);
 
-  // Affecter les meilleurs candidats jusqu'à la quantité requise
+  // Affecter les meilleurs candidats
   for (let i = 0; i < Math.min(needed, candidates.length); i++) {
     const { personnel: p, score } = candidates[i];
+
     assignments.push({
       besoinId: besoin.id,
       personnelId: p.id,
@@ -283,29 +269,23 @@ function solveForNeed(
   return assignments;
 }
 
-/* -------------------------------------------------------------------------- */
-/* 3️⃣  Solver orchestration                                                       */
-/* -------------------------------------------------------------------------- */
-
 /**
- * Point d’entrée du solveur – renvoie un SolverResult.
- */
+ * SOLVEUR PRINCIPAL - Génère le planning optimisé */
 export function solvePlanning(
   state: AppState,
-  config?: SolverConfig
-): SolverResult {
+  config?: SolverConfig): SolverResult {
   const startTime = performance.now();
   const solverConfig = config || loadSolverConfig();
 
   const { besoins, personnel, absences } = state;
   const date = state.selectedDate;
 
-  // Besoins à traiter pour la date sélectionnée
+  // Filter needs for the selected date
   const needsForDate = besoins.filter(
     (b) => b.date === date && b.statut !== "complete"
   );
 
-  // Personnel disponible, trié par nombre d'affectations (celui qui est le moins chargé en premier)
+  // Available personnel sorted by current load (fewest assignments first)
   const availablePersonnel = [...personnel]
     .filter((p) => p.statut === "disponible" && p.actif)
     .sort((a, b) => a.affectationsCount - b.affectationsCount);
@@ -315,11 +295,13 @@ export function solvePlanning(
   const warnings: string[] = [];
   const errors: string[] = [];
 
-  // Traitement de chaque besoin
+  // Process each need
   for (const besoin of needsForDate) {
     const needed = besoin.personnelRequis - besoin.personnelAffecte.length;
+
     if (needed <= 0) continue;
 
+    // Solve for this need
     const needAssignments = solveForNeed(
       besoin,
       availablePersonnel,
@@ -338,7 +320,7 @@ export function solvePlanning(
     allAssignments.push(...needAssignments);
   }
 
-  // Vérifier l'écart d'équité si l'option est activée
+  // Check equity gap
   if (solverConfig.equity.enableEquityScoring) {
     const assignedIds = allAssignments.map((a) => a.personnelId);
     const assignedCounts = new Map<string, number>();
@@ -359,7 +341,8 @@ export function solvePlanning(
     }
   }
 
-  // Statistiques de la résolution  const coveredNeeds = needsForDate.filter((b) => {
+  // Compute statistics
+  const coveredNeeds = needsForDate.filter((b) => {
     const assigned = allAssignments.filter((a) => a.besoinId === b.id).length;
     const total = b.personnelAffecte.length + assigned;
     return total >= b.personnelRequis;
@@ -391,7 +374,7 @@ export function solvePlanning(
 }
 
 /**
- * Applique les résultats du solveur à l'état de l'application.
+ * Applies solver results to the application state
  */
 export function applySolverResults(
   result: SolverResult,
@@ -409,13 +392,11 @@ export function applySolverResults(
 }
 
 /**
- * Solveur pas‑à‑pas – génère un candidat à la fois.
- * Utile pour les visualisations ou les tests.
+ * Step‑by‑step solver – yields one candidate at a time
  */
 export function* solvePlanningStepByStep(
   state: AppState,
-  config?: SolverConfig
-): Generator<
+  config?: SolverConfig): Generator<
   {
     step: number;
     type: "candidate" | "assignment" | "warning" | "complete";
@@ -428,12 +409,11 @@ export function* solvePlanningStepByStep(
   const { besoins, personnel, absences } = state;
   const date = state.selectedDate;
 
-  // Besoins à traiter pour la date sélectionnée
+  // Filter needs for the selected date
   const needsForDate = besoins.filter(
     (b) => b.date === date && b.statut !== "complete"
   );
 
-  // Personnel disponible, trié par charge actuelle
   const availablePersonnel = [...personnel]
     .filter((p) => p.statut === "disponible" && p.actif)
     .sort((a, b) => a.affectationsCount - b.affectationsCount);
@@ -452,19 +432,18 @@ export function* solvePlanningStepByStep(
       absences
     );
 
-    // Emit the top‑5 candidates (or fewer)
     yield {
       step: ++step,
       type: "candidate",
       data: {
         besoin,
-        candidates: candidates.slice(0, 5),
+        candidates: candidates.slice(0, 5), // Top 5
       },
     };
 
-    // Emit each assignment that will be performed
     for (let i = 0; i < Math.min(needed, candidates.length); i++) {
       const { personnel: p, score } = candidates[i];
+
       yield {
         step: ++step,
         type: "assignment",
@@ -477,7 +456,7 @@ export function* solvePlanningStepByStep(
     }
   }
 
-  // Signal the end of the algorithm  yield {
+  yield {
     step: ++step,
     type: "complete",
     data: { message: "Résolution terminée" },
