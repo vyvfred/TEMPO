@@ -8,22 +8,22 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Settings, Shield, Clock, Moon, Sun, Users, 
+import {
+  Settings, Shield, Clock, Moon, Sun, Users,
   AlertTriangle, CheckCircle, Info, Save, RotateCcw,
   Scale, Calendar, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { 
-  SolverConfig, 
-  DEFAULT_SOLVER_CONFIG, 
-  loadSolverConfig, 
-  saveSolverConfig 
+import {
+  SolverConfig,
+  DEFAULT_SOLVER_CONFIG,
+  loadSolverConfig,
+  saveSolverConfig
 } from '@/utils/solverConfig';
 
 export const ParametresSolveur: React.FC = () => {
   const { state } = useAppState();
-  
+
   const [config, setConfig] = useState<SolverConfig>(() => loadSolverConfig());
   const [hasChanges, setHasChanges] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -35,9 +35,9 @@ export const ParametresSolveur: React.FC = () => {
   const updateConfig = <K extends keyof SolverConfig>(
     section: K,
     key: keyof SolverConfig[K],
-    value: any
+    value: unknown
   ) => {
-    setConfig(prev => ({
+    setConfig((prev) => ({
       ...prev,
       [section]: {
         ...prev[section],
@@ -94,7 +94,6 @@ export const ParametresSolveur: React.FC = () => {
           </TabsTrigger>
         </TabsList>
 
-        {/* Contraintes Légales */}
         <TabsContent value="contraintes">
           <Card className="p-6 bg-surface border-border rounded-xl">
             <div className="flex items-center gap-3 mb-6">
@@ -157,7 +156,7 @@ export const ParametresSolveur: React.FC = () => {
                   />
                   <span className="text-text-muted">heures</span>
                 </div>
-                <p className="text-xs text-text-muted">Temps de repos obligatoire (convention collective)</p>
+                <p className="text-xs text-text-muted">Temps de repos obligatoire</p>
               </div>
 
               <div className="space-y-2">
@@ -183,14 +182,13 @@ export const ParametresSolveur: React.FC = () => {
                 <AlertTriangle size={20} className="text-yellow-600 mt-0.5" />
                 <div>
                   <p className="font-medium text-text-main">Important</p>
-                  <p className="text-sm text-text-muted">Ces contraintes sont prioritaires sur les préférences et l'équité. Le solveur refusera toute solution les violant.</p>
+                  <p className="text-sm text-text-muted">Ces contraintes sont prioritaires sur les préférences et l'équité.</p>
                 </div>
               </div>
             </div>
           </Card>
         </TabsContent>
 
-        {/* Préférences */}
         <TabsContent value="preferences">
           <Card className="p-6 bg-surface border-border rounded-xl">
             <div className="flex items-center gap-3 mb-6">
@@ -212,13 +210,11 @@ export const ParametresSolveur: React.FC = () => {
                     <p className="text-sm text-text-muted">Prioriser les préférences de nuit/week-end</p>
                   </div>
                 </div>
-                <Switch 
+                <Switch
                   checked={config.preferences.respectPreferences}
                   onCheckedChange={(v) => updateConfig('preferences', 'respectPreferences', v)}
                 />
               </div>
-
-              <Separator />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -239,7 +235,6 @@ export const ParametresSolveur: React.FC = () => {
                     />
                     <span className="text-text-muted">points</span>
                   </div>
-                  <p className="text-xs text-text-muted">Score bonus si préférence nuit respectée</p>
                 </div>
 
                 <div className="space-y-2">
@@ -260,14 +255,12 @@ export const ParametresSolveur: React.FC = () => {
                     />
                     <span className="text-text-muted">points</span>
                   </div>
-                  <p className="text-xs text-text-muted">Score bonus si préférence WE respectée</p>
                 </div>
               </div>
             </div>
           </Card>
         </TabsContent>
 
-        {/* Équité */}
         <TabsContent value="equite">
           <Card className="p-6 bg-surface border-border rounded-xl">
             <div className="flex items-center gap-3 mb-6">
@@ -289,7 +282,7 @@ export const ParametresSolveur: React.FC = () => {
                     <p className="text-sm text-text-muted">Calculer et utiliser les scores d'équité</p>
                   </div>
                 </div>
-                <Switch 
+                <Switch
                   checked={config.equity.enableEquityScoring}
                   onCheckedChange={(v) => updateConfig('equity', 'enableEquityScoring', v)}
                 />
@@ -313,13 +306,6 @@ export const ParametresSolveur: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-xs text-text-muted">Importance de l'équité vs autres critères (0-100%)</p>
-                
-                <div className="h-2 bg-bg rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-accent transition-all duration-300"
-                    style={{ width: `${config.equity.equityWeight}%` }}
-                  />
-                </div>
               </div>
 
               <div className="space-y-2">
@@ -343,7 +329,6 @@ export const ParametresSolveur: React.FC = () => {
           </Card>
         </TabsContent>
 
-        {/* Contrat */}
         <TabsContent value="contrat">
           <Card className="p-6 bg-surface border-border rounded-xl">
             <div className="flex items-center gap-3 mb-6">
@@ -365,7 +350,7 @@ export const ParametresSolveur: React.FC = () => {
                     <p className="text-sm text-text-muted">Pénaliser les dépassements d'heures et jours</p>
                   </div>
                 </div>
-                <Switch 
+                <Switch
                   checked={config.contract.enableContractCompliance}
                   onCheckedChange={(v) => updateConfig('contract', 'enableContractCompliance', v)}
                 />
@@ -411,7 +396,6 @@ export const ParametresSolveur: React.FC = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Actions */}
       <div className="flex items-center justify-between mt-8 p-4 bg-surface border border-border rounded-xl">
         <div className="text-sm text-text-muted">
           {lastSaved && (
@@ -422,25 +406,17 @@ export const ParametresSolveur: React.FC = () => {
           )}
         </div>
         <div className="flex gap-3">
-          <Button 
-            variant="outline"
-            onClick={handleReset}
-          >
+          <Button variant="outline" onClick={handleReset}>
             <RotateCcw size={16} className="mr-2" />
             Réinitialiser
           </Button>
-          <Button 
-            onClick={handleSave}
-            disabled={!hasChanges}
-            className="bg-accent hover:bg-accent/90"
-          >
+          <Button onClick={handleSave} disabled={!hasChanges} className="bg-accent hover:bg-accent/90">
             <Save size={16} className="mr-2" />
             Enregistrer
           </Button>
         </div>
       </div>
 
-      {/* Info Box */}
       <Card className="mt-6 p-4 bg-blue-50 border-blue-200 rounded-xl">
         <div className="flex items-start gap-3">
           <Info size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
@@ -450,7 +426,7 @@ export const ParametresSolveur: React.FC = () => {
               <li>• Le solveur optimise simultanément : équité, préférences, contraintes légales et qualification</li>
               <li>• Les contraintes légales sont TOUJOURS respectées (priorité absolue)</li>
               <li>• L'équité garantit une répartition équilibrée de la charge de travail</li>
-              <li>• Les préférences sont un bonus, pas une obligation (sauf si configuré)</li>
+              <li>• Les préférences sont un bonus, pas une obligation</li>
               <li>• Le contrôle contrat pénalise les dépassements d'heures et favorise les déficits</li>
             </ul>
           </div>

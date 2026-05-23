@@ -1,6 +1,5 @@
 import type { Besoin, Absence } from '@/store/AppContext';
 
-/* Types */
 export interface SolverLegalConstraints {
   maxHoursPerDay: number;
   maxHoursPerWeek: number;
@@ -33,7 +32,6 @@ export interface SolverConfig {
   contract: SolverContract;
 }
 
-/* Default configuration */
 export const DEFAULT_SOLVER_CONFIG: SolverConfig = {
   legal: {
     maxHoursPerDay: 10,
@@ -58,7 +56,6 @@ export const DEFAULT_SOLVER_CONFIG: SolverConfig = {
   },
 };
 
-/* Load configuration from localStorage */
 export function loadSolverConfig(): SolverConfig {
   try {
     const stored = localStorage.getItem('solver_config');
@@ -73,18 +70,15 @@ export function loadSolverConfig(): SolverConfig {
       };
     }
     return DEFAULT_SOLVER_CONFIG;
-  } catch (e) {
-    console.warn('Erreur lors du chargement de la config du solveur:', e);
+  } catch {
     return DEFAULT_SOLVER_CONFIG;
   }
 }
 
-/* Save configuration to localStorage */
 export function saveSolverConfig(config: SolverConfig): void {
   localStorage.setItem('solver_config', JSON.stringify(config));
 }
 
-/* Validation helpers */
 export interface ConstraintValidation {
   valid: boolean;
   reason?: string;
