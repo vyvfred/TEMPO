@@ -4,7 +4,7 @@
  */
 
 import { SolverConfig, loadSolverConfig } from "./solverConfig";
-import type { Personnel, Besoin, AppState } from "@/store/AppContext";
+import type { Personnel, Besoin, AppState, Absence } from "@/store/AppContext";
 
 // Types pour le solveur
 export interface Assignment {
@@ -117,33 +117,87 @@ function calculateEquityScore(
 }
 
 /**
- * Vérifie les contraintes légales
+ * Vérifie les contraintes légales strictes (Hard Constraints)
  */
 function checkLegalConstraints(
   personnel: Personnel,
   besoins: Besoin[],
   besoin: Besoin,
-  config: SolverConfig
+  config: SolverConfig,
+  absences: Absence[]
 ): { valid: boolean; reason?: string } {
-  // Statut disponible
-  if (personnel.statut !== "disponible") {
-    return { valid: false, reason: "Statut non disponible" };
-  }
-
+  // 1. Statut actif
   if (!personnel.actif) {
     return { valid: false, reason: "Personnel inactif" };
   }
 
-  // Vérifier les nuits consécutives
-  if (besoin.quart === "nuit") {
-    const recentNights = besoins.filter(
+  // 2. Vérifier les absences planifiées pour cette date
+  const hasAbsence = absences.some(
+    (a) =>
+      a.personnelId === personnel.id &&
+      besoin.date >= a.dateDebut &&
+      besoin.date <= a.dateFin
+  );
+  if (hasAbsence) {
+    return { valid: false, reason: "Personnel en congé/absent" };
+  }
+
+  // 3. Vérifier la double affectation le même jour
+  const alreadyAssignedToday = besoins.some(
+    (b) =>
+      b.date === besoin.date &&
+      b.id !== besoin.id &&
+      b.personnelAffecte.includes(personnel.id)
+  );
+  if (alreadyAssignedToday) {
+    return { valid: false, reason: "Déjà affecté aujourd'hui" };
+  }
+
+  // 4. Vérifier le repos minimum entre deux postes (ex: Nuit -> Matin le lendemain)
+  if (besoin.quart === "matin") {
+    const prevDate = new Date(besoin.date);
+    prevDate.setDate(prevDate.getDate() - 1);
+    const prevDateStr = prevDate.toISOString().split("T")[0];
+
+    const workedNightYesterday = besoins.some(
       (b) =>
-        b.date === besoins[0]?.date &&
+        b.date === prevDateStr &&
         b.quart === "nuit" &&
         b.personnelAffecte.includes(personnel.id)
-    ).length;
+    );
 
-    if (recentNights >= config.legal.maxConsecutiveNights) {
+    if (workedNightYesterday) {
+      return {
+        valid: false,
+        reason: `Repos insuffisant après une nuit (requis: ${config.legal.minRestBetweenShifts}h)`,
+      };
+    }
+  }
+
+  // 5. Vérifier les nuits consécutives
+  if (besoin.quart === "nuit") {
+    let consecutiveNights = 0;
+    const checkDate = new Date(besoin.date);
+
+    for (let i = 1; i <= config.legal.maxConsecutiveNights; i++) {
+      checkDate.setDate(checkDate.getDate() - 1);
+      const checkDateStr = checkDate.toISOString().split("T")[0];
+
+      const workedNight = besoins.some(
+        (b) =>
+          b.date === checkDateStr &&
+          b.quart === "nuit" &&
+          b.personnelAffecte.includes(personnel.id)
+      );
+
+      if (workedNight) {
+        consecutiveNights++;
+      } else {
+        break;
+      }
+    }
+
+    if (consecutiveNights >= config.legal.maxConsecutiveNights) {
       return {
         valid: false,
         reason: `Max ${config.legal.maxConsecutiveNights} nuits consécutives atteint`,
@@ -151,11 +205,11 @@ function checkLegalConstraints(
     }
   }
 
-  // Vérifier les restrictions médicales
+  // 6. Restrictions médicales
   if (personnel.restrictions.length > 0) {
     return {
       valid: false,
-      reason: `Restrictions: ${personnel.restrictions.join(", ")}`,
+      reason: `Restrictions médicales: ${personnel.restrictions.join(", ")}`,
     };
   }
 
@@ -209,7 +263,8 @@ function generateCandidates(
   besoin: Besoin,
   personnel: Personnel[],
   allBesoins: Besoin[],
-  config: SolverConfig
+  config: SolverConfig,
+  absences: Absence[]
 ): Array<{ personnel: Personnel; score: ScoringBreakdown }> {
   const candidates: Array<{ personnel: Personnel; score: ScoringBreakdown }> =
     [];
@@ -218,8 +273,8 @@ function generateCandidates(
     // Ne pas ré-affecter déjà affecté
     if (besoin.personnelAffecte.includes(p.id)) continue;
 
-    // Vérifier les contraintes légales
-    const constraints = checkLegalConstraints(p, allBesoins, besoin, config);
+    // Vérifier les contraintes légales strictes
+    const constraints = checkLegalConstraints(p, allBesoins, besoin, config, absences);
     if (!constraints.valid) continue;
 
     // Calculer le score
@@ -240,7 +295,8 @@ function solveForNeed(
   besoin: Besoin,
   personnel: Personnel[],
   allBesoins: Besoin[],
-  config: SolverConfig
+  config: SolverConfig,
+  absences: Absence[]
 ): Assignment[] {
   const assignments: Assignment[] = [];
   const needed = besoin.personnelRequis - besoin.personnelAffecte.length;
@@ -248,7 +304,7 @@ function solveForNeed(
   if (needed <= 0) return assignments;
 
   // Générer les candidats
-  const candidates = generateCandidates(besoin, personnel, allBesoins, config);
+  const candidates = generateCandidates(besoin, personnel, allBesoins, config, absences);
 
   // Affecter les meilleurs candidats
   for (let i = 0; i < Math.min(needed, candidates.length); i++) {
@@ -280,7 +336,7 @@ export function solvePlanning(
   const startTime = performance.now();
   const solverConfig = config || loadSolverConfig();
 
-  const { besoins, personnel } = state;
+  const { besoins, personnel, absences } = state;
   const date = state.selectedDate;
 
   // Filtrer les besoins pour la date sélectionnée
@@ -309,7 +365,8 @@ export function solvePlanning(
       besoin,
       availablePersonnel,
       besoins,
-      solverConfig
+      solverConfig,
+      absences
     );
 
     if (needAssignments.length < needed) {
@@ -409,7 +466,7 @@ export function* solvePlanningStepByStep(
   unknown
 > {
   const solverConfig = config || loadSolverConfig();
-  const { besoins, personnel } = state;
+  const { besoins, personnel, absences } = state;
   const date = state.selectedDate;
 
   const needsForDate = besoins.filter(
@@ -429,7 +486,8 @@ export function* solvePlanningStepByStep(
       besoin,
       availablePersonnel,
       besoins,
-      solverConfig
+      solverConfig,
+      absences
     );
 
     yield {
