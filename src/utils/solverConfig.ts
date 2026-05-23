@@ -20,11 +20,6 @@ export interface SolverEquity {
   maxAffectationGap: number;
 }
 
-export interface SolverLocking {
-  allowManualOverride: boolean;
-  lockGeneratedAssignments: boolean;
-}
-
 export interface SolverContract {
   enableContractCompliance: boolean;
   weeklyContractHours: number;
@@ -36,7 +31,6 @@ export interface SolverConfig {
   preferences: SolverPreferences;
   equity: SolverEquity;
   contract: SolverContract;
-  // locking: SolverLocking; // kept for backward compatibility
 }
 
 /* Default configuration */
@@ -62,7 +56,6 @@ export const DEFAULT_SOLVER_CONFIG: SolverConfig = {
     weeklyContractHours: 35,
     weeklyExpectedDays: 5,
   },
-  // locking: { allowManualOverride: true, lockGeneratedAssignments: false },
 };
 
 /* Load configuration from localStorage */
@@ -77,7 +70,6 @@ export function loadSolverConfig(): SolverConfig {
         preferences: { ...DEFAULT_SOLVER_CONFIG.preferences, ...parsed.preferences },
         equity: { ...DEFAULT_SOLVER_CONFIG.equity, ...parsed.equity },
         contract: { ...DEFAULT_SOLVER_CONFIG.contract, ...parsed.contract },
-        // locking: { ...DEFAULT_SOLVER_CONFIG.locking, ...parsed.locking },
       };
     }
     return DEFAULT_SOLVER_CONFIG;
@@ -103,16 +95,12 @@ export function validateLegalConstraints(
   personnel: { id: string; affectationsCount: number; restrictions: string[] },
   config: SolverLegalConstraints
 ): ConstraintValidation {
-  // Vérifier les restrictions médicales
   if (personnel.restrictions.length > 0) {
     return { valid: false, reason: 'Restrictions médicales actives', severity: 'error' };
   }
   return { valid: true, severity: 'warning' };
 }
 
-/**
- * Simple constraint validation (currently only checks medical restrictions)
- */
 export function checkLegalConstraints(
   personnel: { id: string; affectationsCount: number; restrictions: string[] },
   besoins: Besoin[],
@@ -120,7 +108,7 @@ export function checkLegalConstraints(
   config: SolverConfig,
   absences: Absence[]
 ): ConstraintValidation {
-  // Simplified: only medical restrictions are checked for now  if (personnel.restrictions.length > 0) {
+  if (personnel.restrictions.length > 0) {
     return { valid: false, reason: 'Restrictions médicales actives', severity: 'error' };
   }
   return { valid: true, severity: 'warning' };

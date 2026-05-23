@@ -1,6 +1,5 @@
-import type { Personnel, Besoin, AppState, Absence, SolverConfig } from '@/store/AppContext';
-import { checkLegalConstraints } from './solverConfig';
-import { SolverConfig as SolverConfigType, loadSolverConfig } from './solverConfig';
+import { SolverConfig, loadSolverConfig } from "./solverConfig";
+import type { Personnel, Besoin, AppState, Absence } from "@/store/AppContext";
 
 /**
  * Moteur de Solveur Multi-Objectifs
@@ -38,7 +37,7 @@ export interface ScoringBreakdown {
   qualificationScore: number;
   contractScore: number;
   totalScore: number;
-  softScore: number; // NEW: soft score components
+  softScore: number;
 }
 
 /**
@@ -49,21 +48,18 @@ function calculateQualificationScore(
   besoin: Besoin
 ): number {
   const qualMap: Record<string, string[]> = {
-    ambulance: ['ADE'],
-    // ADE requis pour ambulance
-    VSL: ['ADE', 'VSL'],
-    // ADE ou VSL pour VSL
-    taxi: ['ADE', 'AA', 'VSL', 'REG'],
-    // Tous types pour taxi
+    ambulance: ["ADE"],
+    VSL: ["ADE", "VSL"],
+    taxi: ["ADE", "AA", "VSL", "REG"],
   };
 
-  const requiredQuals = qualMap[ besoin.typePoste ] || ['ADE'];
+  const requiredQuals = qualMap[besoin.typePoste] || ["ADE"];
   const personnelQual = personnel.qualification.abreviation;
 
   if (requiredQuals.includes(personnelQual)) {
-    return 20; // Qualification parfaite
+    return 20;
   }
-  return -20; // Qualification non adaptée
+  return -20;
 }
 
 /**
@@ -72,25 +68,21 @@ function calculateQualificationScore(
 function calculatePreferenceScore(
   personnel: Personnel,
   besoin: Besoin,
-  config: SolverConfig): number {
+  config: SolverConfig
+): number {
   if (!config.preferences.respectPreferences) return 0;
 
   let score = 0;
-  const reasons: string[] = [];
 
-  // Préférence nuit
-  if (besoin.quart === 'nuit' && personnel.preferenciasNuit) {
+  if (besoin.quart === "nuit" && personnel.preferenciasNuit) {
     score += config.preferences.nightPreferenceBonus;
-    reasons.push(`+${config.preferences.nightPreferenceBonus} préf. nuit`);
   }
 
-  // Préférence week-end
   const isWeekend =
-    new Date( besoin.date ).getDay() === 0 ||
-    new Date( besoin.date ).getDay() === 6;
+    new Date(besoin.date).getDay() === 0 ||
+    new Date(besoin.date).getDay() === 6;
   if (isWeekend && personnel.preferenciasWE) {
     score += config.preferences.wePreferenceBonus;
-    reasons.push(`+${config.preferences.wePreferenceBonus} préf. WE`);
   }
 
   return score;
@@ -119,76 +111,28 @@ function calculateEquityScore(
 }
 
 /**
- * Calcule le score de contrat pour une affectation
- * - Pénalise les dépassements d'heures
- * - Favorise les salariés en déficit d'heures */
-function calculateContractScore(
-  personnel: Personnel,
-  besoin: Besoin,
-  allPersonnel: Personnel[],
-  config: SolverConfig
-): number {
-  if (!config.contract.enableContractCompliance) return 0;
-
-  // Calculer les heures planifiées par semaine pour ce salarié
-  const weeklyHours = getPlannedWeeklyHours(personnel, allPersonnel, besoin.date);
-  const weeklyDays = getPlannedWeeklyDays(personnel, allPersonnel, besoin.date);
-
-  // Heures de contrat attendues par semaine (environ 35h)
-  const contractHours = config.contract.weeklyContractHours || 35;
-  const expectedDays = config.contract.weeklyExpectedDays || 5;
-
-  // Écarts
-  const hoursGap = weeklyHours - contractHours;
-  const daysGap = weeklyDays - expectedDays;
-
-  // Pénalité pour dépassement d'heures (max -20)
-  const hoursPenalty = Math.max(0, hoursGap) * -2; // -2 points par heure de dépassement
-  const hoursReward = Math.min(0, hoursGap) * 2; // +2 points par heure de déficit
-
-  // Pénalité pour dépassement de jours (max -10)
-  const daysPenalty = Math.max(0, daysGap) * -2; // -2 points par jour de dépassement
-  const daysReward = Math.min(0, daysGap) * 2; // +2 points par jour de déficit
-
-  // Bonus si le salarié est en déficit global (encourage l'équilibre)
-  let deficitBonus = 0;
-  if (weeklyHours < contractHours * 0.9) {
-    deficitBonus = 5; // +5 points pour ceux en sous‑charge
-  }
-
-  // Alerte si l'écart est important
-  if (hoursGap > 10) {
-    console.warn(`⚠️ ${personnel.prenom} ${personnel.nom} dépasse de ${hoursGap} heures cette semaine`);
-  }
-
-  return hoursPenalty + hoursReward + daysPenalty + daysReward + deficitBonus;
-}
-
-/**
  * Calcule le nombre d'heures planifiées par semaine pour un salarié
  */
 function getPlannedWeeklyHours(
   personnel: Personnel,
-  allPersonnel: Personnel[],
+  besoins: Besoin[],
   currentDate: string
 ): number {
-  // Récupérer toutes les affectations de la semaine en cours
   const weekStart = new Date(currentDate);
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Lundi
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
 
   const weekStartStr = weekStart.toISOString().split('T')[0];
   const weekEndStr = weekEnd.toISOString().split('T')[0];
 
-  // Compter les affectations dans la semaine
   let totalHours = 0;
-  // Utiliser les besoins passés en paramètre (allBesoins)
-  // Ici on suppose que l'array est fourni par l'appelant
-  // Pour simplifier, on considère qu'une affectation = 8h par défaut
-  // Dans une version plus avancée, on pourrait utiliser la durée par besoin
-  // Cette implémentation est juste un placeholder
-  // Dans le contexte réel, on recevra l'array de besoins depuis le solveur
+  besoins.forEach(b => {
+    if (b.personnelAffecte.includes(personnel.id) && b.date >= weekStartStr && b.date <= weekEndStr) {
+      totalHours += 8;
+    }
+  });
+
   return totalHours;
 }
 
@@ -197,22 +141,94 @@ function getPlannedWeeklyHours(
  */
 function getPlannedWeeklyDays(
   personnel: Personnel,
-  allPersonnel: Personnel[],
+  besoins: Besoin[],
   currentDate: string
 ): number {
   const weekStart = new Date(currentDate);
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1); // Lundi  const weekEnd = new Date(weekStart);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+  const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
 
   const weekStartStr = weekStart.toISOString().split('T')[0];
   const weekEndStr = weekEnd.toISOString().split('T')[0];
 
-  // Compter les jours avec au moins une affectation dans la semaine
   const daysSet = new Set<string>();
-  // Utiliser les besoins passés en paramètre
-  // Ici on suppose que l'array est fourni par le solveur
-  // Cette implémentation est juste un placeholder
-  return 0;
+  besoins.forEach(b => {
+    if (b.personnelAffecte.includes(personnel.id) && b.date >= weekStartStr && b.date <= weekEndStr) {
+      daysSet.add(b.date);
+    }
+  });
+
+  return daysSet.size;
+}
+
+/**
+ * Calcule le score de contrat pour une affectation
+ * - Pénalise les dépassements d'heures
+ * - Favorise les salariés en déficit d'heures
+ */
+function calculateContractScore(
+  personnel: Personnel,
+  besoin: Besoin,
+  besoins: Besoin[],
+  config: SolverConfig
+): number {
+  if (!config.contract.enableContractCompliance) return 0;
+
+  const weeklyHours = getPlannedWeeklyHours(personnel, besoins, besoin.date);
+  const weeklyDays = getPlannedWeeklyDays(personnel, besoins, besoin.date);
+
+  const contractHours = config.contract.weeklyContractHours || 35;
+  const expectedDays = config.contract.weeklyExpectedDays || 5;
+
+  const hoursGap = weeklyHours - contractHours;
+  const daysGap = weeklyDays - expectedDays;
+
+  const hoursPenalty = Math.max(0, hoursGap) * -2;
+  const hoursReward = Math.min(0, hoursGap) * 2;
+
+  const daysPenalty = Math.max(0, daysGap) * -2;
+  const daysReward = Math.min(0, daysGap) * 2;
+
+  let deficitBonus = 0;
+  if (weeklyHours < contractHours * 0.9) {
+    deficitBonus = 5;
+  }
+
+  return hoursPenalty + hoursReward + daysPenalty + daysReward + deficitBonus;
+}
+
+/**
+ * Évalue les composantes soft (fairness, night distribution, overtime, preferences)
+ */
+function calculateSoftScore(
+  personnel: Personnel,
+  besoin: Besoin,
+  allPersonnel: Personnel[],
+  config: SolverConfig
+): number {
+  let soft = 0;
+
+  const minAffect = Math.min(...allPersonnel.map(p => p.affectationsCount));
+  const diffToMin = personnel.affectationsCount - minAffect;
+  soft += Math.max(0, 5 - Math.abs(diffToMin));
+
+  if (besoin.quart === "nuit" && personnel.preferenciasNuit) {
+    soft += 3;
+  }
+
+  if (personnel.affectationsCount > 5) {
+    soft -= 2;
+  }
+
+  if (
+    (besoin.quart === "nuit" && personnel.preferenciasNuit) ||
+    (besoin.quart === "apres-midi" && personnel.preferenciasWE)
+  ) {
+    soft += 2;
+  }
+
+  return soft;
 }
 
 /**
@@ -225,30 +241,13 @@ function calculateTotalScore(
   besoins: Besoin[],
   config: SolverConfig
 ): ScoringBreakdown {
-  // Score de base
   const baseScore = 50;
-
-  // Score d'équité
   const equityScore = calculateEquityScore(personnel, allPersonnel, config);
-
-  // Score de préférence (hard preference bonus)
   const preferenceScore = calculatePreferenceScore(personnel, besoin, config);
-
-  // Score de qualification
   const qualificationScore = calculateQualificationScore(personnel, besoin);
+  const contractScore = calculateContractScore(personnel, besoin, besoins, config);
+  const softScore = calculateSoftScore(personnel, besoin, allPersonnel, config);
 
-  // Score de contrat (heures et jours)
-  const contractScore = calculateContractScore(personnel, besoin, allPersonnel, config);
-
-  // Soft score (fairness, night distribution, overtime, etc.)
-  const softScore = calculateSoftScore(
-    personnel,
-    besoin,
-    allPersonnel,
-    config
-  );
-
-  // Total score (capped at 100)
   const totalScore = Math.max(
     0,
     Math.min(
@@ -264,8 +263,33 @@ function calculateTotalScore(
     qualificationScore,
     contractScore,
     totalScore,
-    softScore, // expose soft components
+    softScore,
   };
+}
+
+/**
+ * Vérifie les contraintes légales
+ */
+function checkLegalConstraints(
+  personnel: Personnel,
+  besoins: Besoin[],
+  besoin: Besoin,
+  config: SolverConfig,
+  absences: Absence[]
+): { valid: boolean; reason?: string } {
+  if (personnel.restrictions.length > 0) {
+    return { valid: false, reason: 'Restrictions médicales actives' };
+  }
+
+  if (personnel.statut !== 'disponible') {
+    return { valid: false, reason: 'Statut non disponible' };
+  }
+
+  if (!personnel.actif) {
+    return { valid: false, reason: 'Personnel inactif' };
+  }
+
+  return { valid: true };
 }
 
 /**
@@ -281,26 +305,17 @@ function generateCandidates(
   const candidates: Array<{ personnel: Personnel; score: ScoringBreakdown }> = [];
 
   for (const p of personnel) {
-    // Ne pas ré‑affecter déjà affecté
     if (besoin.personnelAffecte.includes(p.id)) continue;
 
-    // Vérifier les contraintes légales strictes
-    const constraints = checkLegalConstraints(
-      { id: p.id, affectationsCount: p.affectationsCount, restrictions: p.restrictions },
-      allBesoins,
-      besoin,
-      config,
-      absences
-    );
+    const constraints = checkLegalConstraints(p, allBesoins, besoin, config, absences);
     if (!constraints.valid) continue;
 
-    // Calculer le score (inclut soft components)
     const score = calculateTotalScore(p, besoin, personnel, allBesoins, config);
     candidates.push({ personnel: p, score });
   }
 
-  // Trier par score décroissant
   candidates.sort((a, b) => b.score.totalScore - a.score.totalScore);
+
   return candidates;
 }
 
@@ -319,12 +334,11 @@ function solveForNeed(
 
   if (needed <= 0) return assignments;
 
-  // Générer les candidats
-  const candidates = generateCandidates( besoin, personnel, allBesoins, config, absences );
+  const candidates = generateCandidates(besoin, personnel, allBesoins, config, absences);
 
-  // Affecter les meilleurs candidats
   for (let i = 0; i < Math.min(needed, candidates.length); i++) {
     const { personnel: p, score } = candidates[i];
+
     assignments.push({
       besoinId: besoin.id,
       personnelId: p.id,
@@ -355,29 +369,23 @@ export function solvePlanning(
   const { besoins, personnel, absences } = state;
   const date = state.selectedDate;
 
-  // Filter needs for the selected date
   const needsForDate = besoins.filter(
     (b) => b.date === date && b.statut !== "complete"
   );
 
-  // Available personnel sorted by current load (fewest assignments first)
-  const availablePersonnel = [
-    ...personnel,
-  ]
+  const availablePersonnel = [...personnel]
     .filter((p) => p.statut === "disponible" && p.actif)
     .sort((a, b) => a.affectationsCount - b.affectationsCount);
 
   const allAssignments: Assignment[] = [];
   const uncoveredNeeds: Besoin[] = [];
   const warnings: string[] = [];
-  const errors: string[] = [];
 
-  // Process each need
   for (const besoin of needsForDate) {
     const needed = besoin.personnelRequis - besoin.personnelAffecte.length;
+
     if (needed <= 0) continue;
 
-    // Solve for this need
     const needAssignments = solveForNeed(
       besoin,
       availablePersonnel,
@@ -387,22 +395,23 @@ export function solvePlanning(
     );
 
     if (needAssignments.length < needed) {
-      uncoveredNeeds.push( besoin );
+      uncoveredNeeds.push(besoin);
       warnings.push(
-        `${ besoin.service }: ${ needed - needAssignments.length }/${ besoin.personnelRequis } non couvert(s)`
+        `${besoin.service}: ${needed - needAssignments.length}/${needed} non couvert(s)`
       );
     }
 
     allAssignments.push(...needAssignments);
   }
 
-  // Check equity gap
   if (solverConfig.equity.enableEquityScoring) {
     const assignedIds = allAssignments.map((a) => a.personnelId);
     const assignedCounts = new Map<string, number>();
+
     for (const id of assignedIds) {
       assignedCounts.set(id, (assignedCounts.get(id) || 0) + 1);
     }
+
     const counts = Array.from(assignedCounts.values());
     const maxCount = Math.max(...counts, 0);
     const minCount = counts.length > 0 ? Math.min(...counts) : 0;
@@ -415,7 +424,6 @@ export function solvePlanning(
     }
   }
 
-  // Compute statistics
   const coveredNeeds = needsForDate.filter((b) => {
     const assigned = allAssignments.filter((a) => a.besoinId === b.id).length;
     const total = b.personnelAffecte.length + assigned;
@@ -435,7 +443,7 @@ export function solvePlanning(
     assignments: allAssignments,
     uncoveredNeeds,
     warnings,
-    errors,
+    errors: [],
     stats: {
       totalNeeds: needsForDate.length,
       coveredNeeds,
@@ -448,7 +456,7 @@ export function solvePlanning(
 }
 
 /**
- * Applies solver results to the application state
+ * Applique les résultats du solveur à l'état de l'application
  */
 export function applySolverResults(
   result: SolverResult,
@@ -466,29 +474,29 @@ export function applySolverResults(
 }
 
 /**
- * Step‑by‑step solver – yields one candidate at a time
+ * Solveur pas à pas
  */
 export function* solvePlanningStepByStep(
   state: AppState,
   config?: SolverConfig
-): Generator<{
-  step: number;
-  type: "candidate" | "assignment" | "warning" | "complete";
-  data: any;
-}, void, unknown> {
+): Generator<
+  {
+    step: number;
+    type: "candidate" | "assignment" | "warning" | "complete";
+    data: any;
+  },
+  void,
+  unknown
+> {
   const solverConfig = config || loadSolverConfig();
   const { besoins, personnel, absences } = state;
   const date = state.selectedDate;
 
-  // Filter needs for the selected date
   const needsForDate = besoins.filter(
     (b) => b.date === date && b.statut !== "complete"
   );
 
-  // Available personnel sorted by current load (fewest assignments first)
-  const availablePersonnel = [
-    ...personnel,
-  ]
+  const availablePersonnel = [...personnel]
     .filter((p) => p.statut === "disponible" && p.actif)
     .sort((a, b) => a.affectationsCount - b.affectationsCount);
 
@@ -498,7 +506,6 @@ export function* solvePlanningStepByStep(
     const needed = besoin.personnelRequis - besoin.personnelAffecte.length;
     if (needed <= 0) continue;
 
-    // Generate candidates
     const candidates = generateCandidates(
       besoin,
       availablePersonnel,
@@ -512,16 +519,21 @@ export function* solvePlanningStepByStep(
       type: "candidate",
       data: {
         besoin,
-        candidates: candidates.slice(0, 5), // Top 5      },
+        candidates: candidates.slice(0, 5),
+      },
     };
 
-    // Assign the top candidates
     for (let i = 0; i < Math.min(needed, candidates.length); i++) {
       const { personnel: p, score } = candidates[i];
+
       yield {
         step: ++step,
         type: "assignment",
-        data: { besoin, personnel: p, score },
+        data: {
+          besoin,
+          personnel: p,
+          score,
+        },
       };
     }
   }

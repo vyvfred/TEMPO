@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Settings, Shield, Clock, Moon, Sun, Users, 
   AlertTriangle, CheckCircle, Info, Save, RotateCcw,
-  Scale, Calendar, Lock, Unlock, Sparkles, HardDriveDownload
+  Scale, Calendar, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -28,7 +28,6 @@ export const ParametresSolveur: React.FC = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // Charger la conf au montage
   useEffect(() => {
     setConfig(loadSolverConfig());
   }, []);
@@ -315,7 +314,6 @@ export const ParametresSolveur: React.FC = () => {
                 </div>
                 <p className="text-xs text-text-muted">Importance de l'équité vs autres critères (0-100%)</p>
                 
-                {/* Barre visuelle */}
                 <div className="h-2 bg-bg rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-accent transition-all duration-300"
@@ -407,52 +405,6 @@ export const ParametresSolveur: React.FC = () => {
                   <span className="text-text-muted">jours</span>
                 </div>
                 <p className="text-xs text-text-muted">Ex: 5 jours par semaine</p>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* Verrouillage */}
-        <TabsContent value="verrouillage">
-          <Card className="p-6 bg-surface border-border rounded-xl">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-purple-50 rounded-xl">
-                <Lock size={24} className="text-purple-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-text-main">Verrouillage & Override</h3>
-                <p className="text-sm text-text-muted">Gestion des modifications manuelles post-génération</p>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="flex items-center justify-between p-4 bg-bg rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Unlock size={20} className="text-accent" />
-                  <div>
-                    <p className="font-medium text-text-main">Autoriser les overrides manuels</p>
-                    <p className="text-sm text-text-muted">Permettre de modifier les affectations générées</p>
-                  </div>
-                </div>
-                <Switch 
-                  checked={config.locking.allowManualOverride}
-                  onCheckedChange={(v) => updateConfig('locking', 'allowManualOverride', v)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-bg rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Lock size={20} className="text-accent" />
-                  <div>
-                    <p className="font-medium text-text-main">Verrouiller après génération</p>
-                    <p className="text-sm text-text-muted">Empêcher toute modification après solveur</p>
-                  </div>
-                </div>
-                <Switch 
-                  checked={config.locking.lockGeneratedAssignments}
-                  onCheckedChange={(v) => updateConfig('locking', 'lockGeneratedAssignments', v)}
-                  disabled={!config.locking.allowManualOverride}
-                />
               </div>
             </div>
           </Card>
