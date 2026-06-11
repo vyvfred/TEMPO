@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { 
   User, Search, Award, Phone, Mail, MapPin, Calendar,
   Moon, Sun, AlertTriangle, Plus, FileSpreadsheet, ShieldAlert,
-  CheckCircle2, Gauge, HardDriveDownload, Sparkles
+  CheckCircle2, Gauge, HardDriveDownload, Sparkles, Clock, TrendingUp
 } from 'lucide-react';
 import { PersonnelFormModal } from '@/components/PersonnelFormModal';
 import { toast } from 'sonner';
@@ -24,7 +24,7 @@ const statutConfig = {
 
 export const PersonnelList: React.FC = () => {
   const { state, dispatch } = useAppState();
-  const { personnel, bureaux } = state;
+  const { personnel, bureaux, besoins } = state;
   const [search, setSearch] = useState('');
   const [filterStatut, setFilterStatut] = useState<string>('all');
   const [filterBureau, setFilterBureau] = useState<string>('all');
@@ -55,6 +55,49 @@ export const PersonnelList: React.FC = () => {
     autre: personnel.filter(p => p.statut !== 'disponible' && p.statut !== 'en-poste' && p.actif).length,
   };
 
+  // Calculate weekly hours and days for a personnel
+  const getWeeklyStats = (person: PersonnelType) => {
+    const weekStart = new Date(state.selectedDate);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+    const weekBesoins = besoins.filter(b => 
+      b.personnelAffecte.includes(person.id) && 
+      b.date >= weekStartStr && 
+      b.date <= weekEndStr
+    );
+
+    const hours = weekBesoins.length * 8;
+    const days = new Set(weekBesoins.map(b => b.date)).size;
+
+    return { hours, days };
+  };
+
+  // Get contract compliance status
+  const getContractStatus = (person: PersonnelType) => {
+    const { hours, days } = getWeeklyStats(person);
+    const contractHours = person.weeklyContractHours || 35;
+    const expectedDays = person.weeklyExpectedDays || 5;
+
+    const hoursPercent = (hours / contractHours) * 100;
+    const daysPercent = (days / expectedDays) * 100;
+
+    // Status based on percentage of contract fulfilled
+    if (hoursPercent >= 100 && daysPercent >= 100) {
+      return { status: 'complete', label: 'Contrat atteint', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' };
+    }
+    if (hoursPercent >= 80 || daysPercent >= 80) {
+      return { status: 'good', label: 'En bonne voie', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' };
+    }
+    if (hoursPercent >= 50 || daysPercent >= 50) {
+      return { status: 'partial', label: 'Partiel', color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' };
+    }
+    return { status: 'deficit', label: 'Sous-charge', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' };
+  };
+
   const handleOpenModal = (person?: PersonnelType) => {
     setPersonnelToEdit(person || null);
     setModalOpen(true);
@@ -71,9 +114,8 @@ export const PersonnelList: React.FC = () => {
     }
   };
 
-  // Inspecter de manière déterministe la validité des licences de conduite préfectorale (DEA / AA)
+  // Inspect license compliance
   const getLicenseCompliance = (person: PersonnelType) => {
-    // Les ambulanciers de plus de 45 ans requièrent un examen médical bisannuel
     const isAde = person.qualification.abreviation === 'ADE';
     const hasRestrictions = person.restrictions.length > 0;
     
@@ -92,7 +134,7 @@ export const PersonnelList: React.FC = () => {
   };
 
   const handleExportStaff = () => {
-    const headers = ['Nom', 'Prénom', 'Téléphone', 'Email', 'Qualification', 'Statut', 'Bureaux', 'Équité Score'];
+    const headers = ['Nom', 'Prénom', 'Téléphone', 'Email', 'Qualification', 'Statut', 'Bureaux', 'Équité Score', 'Heures contrat/sem', 'Jours attendus/sem'];
     const rows = filteredPersonnel.map(p => {
       const b = bureaux.find(bureau => bureau.id === p.bureauId);
       return [
@@ -104,6 +146,8 @@ export const PersonnelList: React.FC = () => {
         p.statut,
         b?.nom || '',
         p.equidadScore,
+        p.weeklyContractHours || 35,
+        p.weeklyExpectedDays || 5,
       ];
     });
     const csvStr = [headers, ...rows].map(row => row.join(',')).join('\n');
@@ -205,6 +249,8 @@ export const PersonnelList: React.FC = () => {
             const statutInfo = statutConfig[person.statut as keyof typeof statutConfig] || statutConfig['disponible'];
             const bureau = bureaux.find(b => b.id === person.bureauId);
             const licenseInfo = getLicenseCompliance(person);
+            const contractStatus = getContractStatus(person);
+            const { hours, days } = getWeeklyStats(person);
             
             return (
               <Card 
@@ -236,6 +282,35 @@ export const PersonnelList: React.FC = () => {
                         <Award size={14} className="text-accent" />
                         <span>{person.qualification?.nom}</span>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Contract Compliance Indicator */}
+                  <div className={`p-3 rounded-lg border mb-4 ${contractStatus.bg} ${contractStatus.border}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-bold text-text-muted uppercase flex items-center gap-1">
+                        <Clock size={12} className={contractStatus.color} />
+                        Contrat semaine
+                      </span>
+                      <Badge className={`${contractStatus.color} bg-white border text-[9px] font-bold uppercase`}>
+                        {contractStatus.label}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="text-center p-2 bg-white/50 rounded">
+                        <p className="text-lg font-extrabold text-text-main">{hours}h</p>
+                        <p className="text-[9px] text-text-muted">/ {person.weeklyContractHours || 35}h contrat</p>
+                      </div>
+                      <div className="text-center p-2 bg-white/50 rounded">
+                        <p className="text-lg font-extrabold text-text-main">{days}j</p>
+                        <p className="text-[9px] text-text-muted">/ {person.weeklyExpectedDays || 5}j attendus</p>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <Progress 
+                        value={Math.min(100, (hours / (person.weeklyContractHours || 35)) * 100)} 
+                        className="h-1.5 bg-slate-200" 
+                      />
                     </div>
                   </div>
 

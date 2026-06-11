@@ -4,7 +4,7 @@ import {
   Home, LayoutDashboard, Calendar, Users, ClipboardList, 
   Activity, Briefcase, FileText, Settings, 
   MapPin, Clock, Award, AlertTriangle, 
-  Building2, Shield, Book, Cpu
+  Building2, Shield, Book, Cpu, CalendarCheck
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAppState } from '@/store/AppContext';
@@ -166,6 +166,24 @@ export const Sidebar: React.FC = () => {
               <span className="flex-1">{label}</span>
             </NavLink>
           ))}
+          
+          {/* Contrats Dashboard Link */}
+          <NavLink
+            to="/parametres/contrats"
+            className={({ isActive }) =>
+              `px-3 py-2.5 flex items-center gap-3 font-medium rounded-lg transition-all ${
+                isActive
+                  ? 'bg-accent/10 text-accent shadow-sm'
+                  : 'text-text-muted hover:bg-bg hover:text-text-main'
+              }`
+            }
+          >
+            <CalendarCheck size={20} />
+            <span className="flex-1">Suivi Contrats</span>
+            <Badge variant="outline" className="text-xs bg-teal-50 text-teal-700 border-teal-200">
+              Nouveau
+            </Badge>
+          </NavLink>
         </div>
       </div>
       

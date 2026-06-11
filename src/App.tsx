@@ -11,6 +11,7 @@ import { Taches } from '@/views/Taches/Taches';
 import { Absences } from '@/views/Absences/Absences';
 import { Parametres } from '@/views/Parametres/Parametres';
 import { ParametresSolveur } from '@/views/Parametres/Solveur';
+import { ParametresContrats } from '@/views/Parametres/Contrats';
 import { MonthlyPlanner } from '@/views/Planning/MonthlyPlanner';
 import { Agences } from '@/views/Agences/Agences';
 import Equite from '@/views/Equite/Equite';
@@ -40,6 +41,7 @@ const AppContent: React.FC = () => {
         <Route path="/absences" element={<Absences />} />
         <Route path="/parametres" element={<Parametres />} />
         <Route path="/parametres/solveur" element={<ParametresSolveur />} />
+        <Route path="/parametres/contrats" element={<ParametresContrats />} />
         <Route path="/agences" element={<Agences />} />
         <Route path="/equite" element={<Equite />} />
         <Route path="/guide" element={<Guide />} />
