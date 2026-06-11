@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   UserCircle, Bell, Settings, Activity, ChevronLeft, ChevronRight, 
   Calendar, Sun, Moon, Keyboard, X, AlertTriangle, CheckCircle,
-  Building2, ChevronDown, Menu, Home
+  Building2, ChevronDown, Menu, Home, Clock, TrendingUp, AlertOctagon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,27 @@ export const Header: React.FC = () => {
   const [showBureauSelector, setShowBureauSelector] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Calculate weekly stats for contract alerts
+  const getWeeklyStats = (personId: string) => {
+    const weekStart = new Date(state.selectedDate);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+    const weekBesoins = state.besoins.filter(b => 
+      b.personnelAffecte.includes(personId) && 
+      b.date >= weekStartStr && 
+      b.date <= weekEndStr
+    );
+
+    const hours = weekBesoins.length * 8;
+    const days = new Set(weekBesoins.map(b => b.date)).size;
+
+    return { hours, days };
+  };
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -55,7 +76,7 @@ export const Header: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Generate notifications from current state
+  // Generate notifications from current state including contract alerts
   useEffect(() => {
     const today = state.selectedDate;
     const besoinsDuJour = state.besoins.filter(b => b.date === today);
@@ -91,9 +112,46 @@ export const Header: React.FC = () => {
         timestamp: new Date(),
       });
     }
+
+    // Contract limit alerts
+    const contractAlerts: { type: 'overload' | 'deficit'; personnel: string; hours: number; contractHours: number }[] = [];
+    
+    state.personnel.filter(p => p.actif && p.statut === 'disponible').forEach(p => {
+      const { hours } = getWeeklyStats(p.id);
+      const contractHours = p.weeklyContractHours || 35;
+      const hoursPercent = (hours / contractHours) * 100;
+      
+      // Alert if approaching 100% or exceeding
+      if (hoursPercent >= 100) {
+        contractAlerts.push({
+          type: 'overload',
+          personnel: `${p.prenom} ${p.nom}`,
+          hours,
+          contractHours,
+        });
+      } else if (hoursPercent >= 90) {
+        contractAlerts.push({
+          type: 'overload',
+          personnel: `${p.prenom} ${p.nom}`,
+          hours,
+          contractHours,
+        });
+      }
+    });
+
+    // Add contract overload alerts
+    const overloadAlerts = contractAlerts.filter(a => a.type === 'overload');
+    if (overloadAlerts.length > 0) {
+      newNotifications.push({
+        id: 'contract-overload',
+        type: 'warning',
+        message: `${overloadAlerts.length} employé(s) proche(s) de la surcharge contractuelle`,
+        timestamp: new Date(),
+      });
+    }
     
     setNotifications(newNotifications);
-  }, [state.besoins, state.activites, state.selectedDate]);
+  }, [state.besoins, state.activites, state.selectedDate, state.personnel]);
 
   const handleDateChange = (days: number) => {
     const currentDate = new Date(state.selectedDate);
@@ -218,6 +276,15 @@ export const Header: React.FC = () => {
             )}
           </div>
 
+          {/* Contract Alerts Quick Link */}
+          <button 
+            onClick={() => navigate('/parametres/contrats')}
+            className="p-2 hover:bg-bg rounded-full transition-colors hidden sm:flex"
+            title="Suivi des contrats"
+          >
+            <Clock size={20} className="text-teal-600" />
+          </button>
+
           {/* Dark mode toggle */}
           <button 
             onClick={toggleDarkMode}
@@ -285,9 +352,19 @@ export const Header: React.FC = () => {
                   notif.type === 'error' ? 'bg-red-50' : notif.type === 'warning' ? 'bg-yellow-50' : 'bg-green-50'
                 }`}>
                   {notif.type === 'error' && <AlertTriangle size={18} className="text-danger flex-shrink-0" />}
-                  {notif.type === 'warning' && <AlertTriangle size={18} className="text-warning flex-shrink-0" />}
+                  {notif.type === 'warning' && <AlertOctagon size={18} className="text-warning flex-shrink-0" />}
                   {notif.type === 'success' && <CheckCircle size={18} className="text-success flex-shrink-0" />}
-                  <p className="text-sm text-text-main">{notif.message}</p>
+                  <div className="flex-1">
+                    <p className="text-sm text-text-main">{notif.message}</p>
+                    {notif.id === 'contract-overload' && (
+                      <button 
+                        onClick={() => { navigate('/parametres/contrats'); setShowNotifications(false); }}
+                        className="text-xs text-accent hover:underline mt-1"
+                      >
+                        Voir le détail →
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))
             ) : (

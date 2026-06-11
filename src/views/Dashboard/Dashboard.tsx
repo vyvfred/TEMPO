@@ -11,7 +11,7 @@ import {
   Users, Truck, CalendarCheck, AlertTriangle, TrendingUp, 
   Activity as ActivityIcon, Briefcase, Clock, Award,
   ArrowRight, CheckCircle, XCircle, UserPlus, Sparkles,
-  Cpu, Scale
+  Cpu, Scale, AlertOctagon, TrendingDown
 } from 'lucide-react';
 
 interface KPICardProps {
@@ -75,6 +75,54 @@ export const Dashboard: React.FC = () => {
 
   const activitiesDuJour = activites.filter(a => a.date === today);
   const tachesDuJour = taches.filter(t => t.date === today);
+
+  // Calculate contract stats
+  const getWeeklyStats = (personId: string) => {
+    const weekStart = new Date(today);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+    const weekBesoins = besoins.filter(b => 
+      b.personnelAffecte.includes(personId) && 
+      b.date >= weekStartStr && 
+      b.date <= weekEndStr
+    );
+
+    const hours = weekBesoins.length * 8;
+    const days = new Set(weekBesoins.map(b => b.date)).size;
+
+    return { hours, days };
+  };
+
+  const contractStats = React.useMemo(() => {
+    let overloaded = 0;
+    let underloaded = 0;
+    let compliant = 0;
+    const alerts: { name: string; hours: number; contract: number; status: string }[] = [];
+
+    personnel.filter(p => p.actif).forEach(p => {
+      const { hours } = getWeeklyStats(p.id);
+      const contractHours = p.weeklyContractHours || 35;
+      const percent = (hours / contractHours) * 100;
+
+      if (percent >= 100) {
+        overloaded++;
+        alerts.push({ name: `${p.prenom} ${p.nom}`, hours, contract: contractHours, status: 'Surcharge' });
+      } else if (percent >= 80) {
+        compliant++;
+      } else if (percent < 50) {
+        underloaded++;
+        alerts.push({ name: `${p.prenom} ${p.nom}`, hours, contract: contractHours, status: 'Sous-charge' });
+      } else {
+        compliant++;
+      }
+    });
+
+    return { overloaded, underloaded, compliant, alerts: alerts.slice(0, 5) };
+  }, [personnel, besoins, today]);
 
   // Données pour graphiques
   const statutData = [
@@ -211,13 +259,74 @@ export const Dashboard: React.FC = () => {
         />
         <KPICard 
           title="Alertes" 
-          value={besoinsNonCouverts + besoinsPartiels} 
-          subtitle={`${besoinsNonCouverts} non couverts`}
+          value={besoinsNonCouverts + besoinsPartiels + contractStats.overloaded} 
+          subtitle={`${besoinsNonCouverts} non couverts, ${contractStats.overloaded} surcharge`}
           icon={<AlertTriangle size={28}/>}
-          color={besoinsNonCouverts > 0 ? '#ef4444' : '#10b981'}
-          bgColor={besoinsNonCouverts > 0 ? 'bg-red-50' : 'bg-green-50'}
+          color={besoinsNonCouverts > 0 || contractStats.overloaded > 0 ? '#ef4444' : '#10b981'}
+          bgColor={besoinsNonCouverts > 0 || contractStats.overloaded > 0 ? 'bg-red-50' : 'bg-green-50'}
         />
       </div>
+
+      {/* Contract Alerts Card */}
+      {(contractStats.overloaded > 0 || contractStats.underloaded > 0) && (
+        <Card className="mb-8 bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 rounded-xl">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <AlertOctagon size={24} className="text-orange-600" />
+                <div>
+                  <p className="font-semibold text-text-main">Alertes Contractuelles</p>
+                  <p className="text-sm text-text-muted">
+                    Suivi hebdomadaire des heures vs contrats
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate('/parametres/contrats')}
+                className="border-orange-300 text-orange-700 hover:bg-orange-100"
+              >
+                Voir détails <ArrowRight size={14} className="ml-1" />
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="text-center p-3 bg-white/50 rounded-lg">
+                <TrendingUp size={20} className="mx-auto mb-1 text-red-600" />
+                <p className="text-2xl font-bold text-red-600">{contractStats.overloaded}</p>
+                <p className="text-xs text-red-600">En surcharge</p>
+              </div>
+              <div className="text-center p-3 bg-white/50 rounded-lg">
+                <TrendingDown size={20} className="mx-auto mb-1 text-orange-600" />
+                <p className="text-2xl font-bold text-orange-600">{contractStats.underloaded}</p>
+                <p className="text-xs text-orange-600">Sous-charge</p>
+              </div>
+              <div className="text-center p-3 bg-white/50 rounded-lg">
+                <CheckCircle size={20} className="mx-auto mb-1 text-green-600" />
+                <p className="text-2xl font-bold text-green-600">{contractStats.compliant}</p>
+                <p className="text-xs text-green-600">Conformes</p>
+              </div>
+            </div>
+
+            {contractStats.alerts.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-text-muted uppercase">Employés concernés:</p>
+                {contractStats.alerts.map((alert, i) => (
+                  <div key={i} className={`flex items-center justify-between p-2 rounded-lg ${
+                    alert.status === 'Surcharge' ? 'bg-red-100' : 'bg-orange-100'
+                  }`}>
+                    <span className="text-sm font-medium text-text-main">{alert.name}</span>
+                    <Badge className={alert.status === 'Surcharge' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}>
+                      {alert.hours}h / {alert.contract}h contrat ({alert.status})
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Additional Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
