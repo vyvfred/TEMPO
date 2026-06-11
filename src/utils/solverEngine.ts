@@ -222,6 +222,10 @@ export function solvePlanning(state: AppState, config?: SolverConfig): SolverRes
     if (gap > solverConfig.equity.maxAffectationGap) warnings.push(`Écart d'affectations: ${gap} (max: ${solverConfig.equity.maxAffectationGap})`);
   }
 
+  // Contract limit warnings
+  const contractWarnings = checkContractLimits(allAssignments, besoins, date);
+  warnings.push(...contractWarnings);
+
   const coveredNeeds = needsForDate.filter((b) => {
     const assigned = allAssignments.filter((a) => a.besoinId === b.id).length;
     return b.personnelAffecte.length + assigned >= b.personnelRequis;
@@ -240,6 +244,51 @@ export function solvePlanning(state: AppState, config?: SolverConfig): SolverRes
     errors: [],
     stats: { totalNeeds: needsForDate.length, coveredNeeds, partialNeeds, uncoveredNeeds: uncoveredNeeds.length, totalAssignments: allAssignments.length, executionTime: performance.now() - startTime },
   };
+}
+
+/**
+ * Check for contract limit violations after assignments
+ */
+function checkContractLimits(assignments: Assignment[], besoins: Besoin[], currentDate: string): string[] {
+  const warnings: string[] = [];
+  
+  // Group assignments by personnel
+  const personnelAssignments = new Map<string, string[]>();
+  assignments.forEach(a => {
+    if (!personnelAssignments.has(a.personnelId)) {
+      personnelAssignments.set(a.personnelId, []);
+    }
+    personnelAssignments.get(a.personnelId)!.push(a.besoinId);
+  });
+
+  // Check each personnel's contract status
+  personnelAssignments.forEach((besoinIds, personnelId) => {
+    const weekStart = new Date(currentDate);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+    // Calculate total hours for the week including new assignments
+    let weeklyHours = 0;
+    besoins.forEach(b => {
+      if (b.personnelAffecte.includes(personnelId) && b.date >= weekStartStr && b.date <= weekEndStr) {
+        weeklyHours += 8;
+      }
+    });
+    
+    // Add hours from new assignments
+    weeklyHours += besoinIds.length * 8;
+
+    // This is a simplified check - in real app, we'd get the personnel's contract hours
+    // For now, we just warn if someone is getting close to 40 hours
+    if (weeklyHours >= 40) {
+      warnings.push(`Contract limit approaching: personnel ${personnelId} at ${weeklyHours}h for the week`);
+    }
+  });
+
+  return warnings;
 }
 
 export function applySolverResults(result: SolverResult, dispatch: React.Dispatch<any>): void {

@@ -4,11 +4,13 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { 
   CheckCircle, AlertCircle, XCircle, Sparkles, Cpu, 
   Search, Shield, Calendar, Users, Grid, Plus, Lock, Info, 
   ChevronLeft, ChevronRight, Eye, Eraser, Printer, Save, HelpCircle, Filter,
-  Highlighter, Paintbrush, Edit3, Clipboard, HelpCircle as HelpIcon, TrendingUp, BarChart3, Clock
+  Highlighter, Paintbrush, Edit3, Clipboard, HelpCircle as HelpIcon, TrendingUp, BarChart3, Clock,
+  AlertTriangle, AlertOctagon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SolverModal } from '@/components/Planning/SolverModal';
@@ -117,7 +119,52 @@ export const MonthlyPlanner: React.FC = () => {
     vehicle: string;
   } | null>(null);
 
-  // Dictionnaire local des notes personnalisées par utilisateur & jour
+  // Contract alerts state
+  const [showContractAlerts, setShowContractAlerts] = useState<boolean>(true);
+
+  // Calculer les stats contractuelles pour la période
+  const contractStats = useMemo(() => {
+    const weekStart = new Date(state.selectedDate);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+    const stats: { overloaded: number; underloaded: number; compliant: number; alerts: { name: string; hours: number; contract: number; status: string }[] } = {
+      overloaded: 0,
+      underloaded: 0,
+      compliant: 0,
+      alerts: []
+    };
+
+    personnel.filter(p => p.actif).forEach(p => {
+      const weekBesoins = besoins.filter(b => 
+        b.personnelAffecte.includes(p.id) && 
+        b.date >= weekStartStr && 
+        b.date <= weekEndStr
+      );
+      const hours = weekBesoins.length * 8;
+      const contractHours = p.weeklyContractHours || 35;
+      const percent = (hours / contractHours) * 100;
+
+      if (percent >= 100) {
+        stats.overloaded++;
+        stats.alerts.push({ name: `${p.prenom} ${p.nom}`, hours, contract: contractHours, status: 'Surcharge' });
+      } else if (percent >= 80) {
+        stats.compliant++;
+      } else if (percent < 50) {
+        stats.underloaded++;
+        stats.alerts.push({ name: `${p.prenom} ${p.nom}`, hours, contract: contractHours, status: 'Sous-charge' });
+      } else {
+        stats.compliant++;
+      }
+    });
+
+    return stats;
+  }, [personnel, besoins, state.selectedDate]);
+
+  // Dictionary local des notes personnalisées par utilisateur & jour
   const [cellNotes, setCellNotes] = useState<Record<string, { note: string; vehicle: string }>>(() => {
     try {
       const stored = localStorage.getItem('ambuplan_detailed_notes');
@@ -421,7 +468,7 @@ export const MonthlyPlanner: React.FC = () => {
     toast.promise(runSolver({ showToasts: false }), {
       loading: 'Optimisation automatique par le solveur intelligent Vyv...',
       success: (res) => `Planning optimisé ! ${res?.stats.totalAssignments || 0} affectations générées.`,
-      error: 'Erreur lors de l’optimisation'
+      error: 'Erreur lors de l\'optimisation'
     });
   };
 
@@ -470,7 +517,7 @@ export const MonthlyPlanner: React.FC = () => {
     };
   }, [filteredPersonnel, daysOfPeriod, besoins, absences, taches]);
 
-  // Alerte d’effectifs sous-dotés jour par jour
+  // Alerte d'effectifs sous-dotés jour par jour
   const understaffedDays = useMemo(() => {
     const alerts: { dateStr: string; label: string; missing: number }[] = [];
     
@@ -501,6 +548,51 @@ export const MonthlyPlanner: React.FC = () => {
   return (
     <div className="p-4 md:p-6 space-y-4">
       
+      {/* Contract Alerts Banner */}
+      {(contractStats.overloaded > 0 || contractStats.underloaded > 0) && showContractAlerts && (
+        <Card className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AlertOctagon size={24} className="text-orange-600" />
+              <div>
+                <p className="font-bold text-text-main">Alertes Contractuelles</p>
+                <p className="text-sm text-text-muted">
+                  {contractStats.overloaded} en surcharge, {contractStats.underloaded} en sous-charge cette semaine
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => window.location.href = '/parametres/contrats'}
+                className="border-orange-300 text-orange-700 hover:bg-orange-100"
+              >
+                Voir détails
+              </Button>
+              <button 
+                onClick={() => setShowContractAlerts(false)}
+                className="p-1 hover:bg-orange-100 rounded"
+              >
+                <XCircle size={18} className="text-orange-400" />
+              </button>
+            </div>
+          </div>
+          {contractStats.alerts.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {contractStats.alerts.slice(0, 5).map((alert, i) => (
+                <Badge 
+                  key={i} 
+                  className={alert.status === 'Surcharge' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}
+                >
+                  {alert.name}: {alert.hours}h/{alert.contract}h
+                </Badge>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* 1. BARRE DE COMMANDE SUPÉRIEURE (Comme le logiciel historique) */}
       <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4 bg-surface p-4 rounded-xl border border-border shadow-sm">
         
@@ -1072,14 +1164,14 @@ export const MonthlyPlanner: React.FC = () => {
 
       </div>
 
-      {/* Guide d’aide rapide pour les planificateurs */}
+      {/* Guide d'aide rapide pour les planificateurs */}
       <Card className="p-5 bg-slate-100 border border-slate-200 rounded-xl">
         <div className="flex items-start gap-3">
           <Info size={20} className="text-slate-600 flex-shrink-0 mt-0.5" />
           <div className="text-xs text-slate-700 space-y-1">
             <h4 className="font-bold text-text-main text-sm mb-1">Aide à la planification rapide (Mode Tampon & Observation)</h4>
-            <p>1. Cliquez sur l’un de nos <strong>Tampons de l'équipe</strong> dans la palette de raccourcis supérieure pour l'activer.</p>
-            <p>2. Cliquez ensuite sur n’importe quelle case du planning pour appliquer l'amplitude ou l'absence en un clic.</p>
+            <p>1. Cliquez sur l'un de nos <strong>Tampons de l'équipe</strong> dans la palette de raccourcis supérieure pour l'activer.</p>
+            <p>2. Cliquez ensuite sur n'importe quelle case du planning pour appliquer l'amplitude ou l'absence en un clic.</p>
             <p>3. **Double-cliquez** sur n'importe quel badge de la grille pour ajouter un numéro d'immatriculation, de camion ou des consignes textuelles associées.</p>
           </div>
         </div>
