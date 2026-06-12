@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppState, Besoin, Personnel, Absence, Tache } from '@/store/AppContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,32 +27,32 @@ import {
 // Palette de styles étendue inspirée de l'image de référence
 const scheduleStyles = {
   // Amplitudes Standards (Bleu & Sarcelle / Turquoise)
-  'AMP8': { bg: 'bg-[#1e40af] text-white border-[#1d4ed8]', label: 'AMP 8h' },
-  'AMP6': { bg: 'bg-[#3b82f6] text-white border-[#60a5fa]', label: 'AMP 6h' },
-  'AMV': { bg: 'bg-[#0f766e] text-white border-[#14b8a6]', label: 'AMV/VSL' },
-  'TAXI': { bg: 'bg-[#0ea5e9] text-white border-[#38bdf8]', label: 'TAXI Standard' },
-  'REG1': { bg: 'bg-[#7e22ce] text-white border-[#a855f7]', label: 'RÉGUL' },
+  'AMP8': { bg: 'bg-[#1e40af] text-white border-[#1d4ed8]', label: 'AMP 8h', text: 'text-white' },
+  'AMP6': { bg: 'bg-[#3b82f6] text-white border-[#60a5fa]', label: 'AMP 6h', text: 'text-white' },
+  'AMV': { bg: 'bg-[#0f766e] text-white border-[#14b8a6]', label: 'AMV/VSL', text: 'text-white' },
+  'TAXI': { bg: 'bg-[#0ea5e9] text-white border-[#38bdf8]', label: 'TAXI Standard', text: 'text-white' },
+  'REG1': { bg: 'bg-[#7e22ce] text-white border-[#a855f7]', label: 'RÉGUL', text: 'text-white' },
 
   // Absences Diverses (Orange / Bordeaux)
-  'ABS7': { bg: 'bg-[#f97316] text-white border-[#ea580c]', label: 'ABS7' },
-  'CS': { bg: 'bg-[#d97706] text-white border-[#b55607]', label: 'CS' },
-  'RC': { bg: 'bg-[#ea580c] text-white border-[#c2410c]', label: 'RÉCUP' },
-  'FOR': { bg: 'bg-[#881337] text-white border-[#9f1239]', label: 'FORMA' },
+  'ABS7': { bg: 'bg-[#f97316] text-white border-[#ea580c]', label: 'ABS7', text: 'text-white' },
+  'CS': { bg: 'bg-[#d97706] text-white border-[#b55607]', label: 'CS', text: 'text-white' },
+  'RC': { bg: 'bg-[#ea580c] text-white border-[#c2410c]', label: 'RÉCUP', text: 'text-white' },
+  'FOR': { bg: 'bg-[#881337] text-white border-[#9f1239]', label: 'FORMA', text: 'text-white' },
 
   // Congés Payés (Vert d'eau / Turquoise)
-  'CP': { bg: 'bg-[#0d9488] text-white border-[#0f766e]', label: 'C.P.' },
-  'CP5': { bg: 'bg-[#14b8a6] text-white border-[#0d9488]', label: 'CP 5j' },
+  'CP': { bg: 'bg-[#0d9488] text-white border-[#0f766e]', label: 'C.P.', text: 'text-white' },
+  'CP5': { bg: 'bg-[#14b8a6] text-white border-[#0d9488]', label: 'CP 5j', text: 'text-white' },
 
   // Jours chômés / Fériés (Rose / Saumon)
-  'JF': { bg: 'bg-[#ec4899] text-white border-[#db2777]', label: 'FÉRIÉ' },
-  'JF2': { bg: 'bg-[#f472b6] text-white border-[#f43f5e]', label: 'JF 2h' },
+  'JF': { bg: 'bg-[#ec4899] text-white border-[#db2777]', label: 'FÉRIÉ', text: 'text-white' },
+  'JF2': { bg: 'bg-[#f472b6] text-white border-[#f43f5e]', label: 'JF 2h', text: 'text-white' },
 
   // Maladie / Accident (Bleu marine foncé)
-  'CM': { bg: 'bg-[#1e3a8a] text-white border-[#172554]', label: 'MALAD' },
-  'AT': { bg: 'bg-[#1e1b4b] text-white border-[#0f172a]', label: 'ACCID' },
+  'CM': { bg: 'bg-[#1e3a8a] text-white border-[#172554]', label: 'MALAD', text: 'text-white' },
+  'AT': { bg: 'bg-[#1e1b4b] text-white border-[#0f172a]', label: 'ACCID', text: 'text-white' },
 
   // Repos / Disponibilité par défaut
-  'REP': { bg: 'bg-[#cbd5e1] text-slate-800 border-[#94a3b8]', label: 'REPOS' }
+  'REP': { bg: 'bg-[#cbd5e1] text-slate-800 border-[#94a3b8]', label: 'REPOS', text: 'text-slate-800' }
 };
 
 interface LegendStamp {
@@ -92,6 +93,7 @@ const legendStamps: LegendStamp[] = [
 
 export const MonthlyPlanner: React.FC = () => {
   const { state, dispatch } = useAppState();
+  const navigate = useNavigate();
   const { personnel, besoins, absences, taches, bureaux } = state;
   const { isSolving, runSolver } = useSolver();
 
@@ -565,7 +567,7 @@ export const MonthlyPlanner: React.FC = () => {
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => window.location.href = '/parametres/contrats'}
+                onClick={() => navigate('/parametres/contrats')}
                 className="border-orange-300 text-orange-700 hover:bg-orange-100"
               >
                 Voir détails
@@ -1019,65 +1021,23 @@ export const MonthlyPlanner: React.FC = () => {
                       const schedule = getDaySchedule(person.id, dateStr);
                       const configStyle = scheduleStyles[schedule.code as keyof typeof scheduleStyles] || scheduleStyles.REP;
                       const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                      
-                      // Gestion Surlignement
-                      const shouldDim = toolboxMode === 'highlight' && highlightedCode !== null && schedule.code !== highlightedCode;
-                      const isHighlighted = toolboxMode === 'highlight' && highlightedCode !== null && schedule.code === highlightedCode;
-
-                      // Récupérer s'il y a des observations personnalisées via double-clic
-                      const detailedNoteKey = `${person.id}_${dateStr}`;
-                      const hasDetailedNotes = !!cellNotes[detailedNoteKey]?.note;
-                      const detailedVehicle = cellNotes[detailedNoteKey]?.vehicle;
+                      const isHighlighted = highlightedCode && schedule.code === highlightedCode;
+                      const isSelected = selectedStamp && schedule.code === selectedStamp;
 
                       return (
                         <td 
                           key={dIndex}
+                          className={`relative p-1 border-r border-[#e2e8f0] w-[120px] h-16 ${
+                            isWeekend ? 'bg-slate-50/50' : ''
+                          } ${isHighlighted ? 'ring-2 ring-purple-500' : ''} ${isSelected ? 'ring-2 ring-accent' : ''}`}
                           onClick={() => handleCellClick(person.id, day)}
                           onDoubleClick={() => handleCellDoubleClick(person.id, `${person.prenom} ${person.nom}`, dateStr, schedule)}
-                          className={`p-1 text-center border-r border-[#e2e8f0] w-[120px] transition-all relative group cursor-pointer ${
-                            isWeekend ? 'bg-slate-50/20' : ''
-                          } ${
-                            selectedStamp || isEraserMode ? 'hover:bg-accent/10 hover:border-accent' : ''
-                          } ${
-                            shouldDim ? 'opacity-25' : 'opacity-100'
-                          }`}
                         >
-                          {/* Badge de couleur du shift */}
-                          <div 
-                            className={`w-full py-2.5 rounded-lg text-xs font-bold border flex flex-col items-center justify-center min-h-[50px] transition-all relative ${
-                              configStyle.bg
-                            } ${
-                              isHighlighted ? 'ring-4 ring-purple-600 animate-pulse' : ''
-                            }`}
-                            title={schedule.detail}
-                          >
-                            <span className="tracking-wide uppercase text-[11px] font-extrabold">
-                              {schedule.label}
-                            </span>
-                            {schedule.type !== 'repos' && (
-                              <span className="text-[8px] opacity-80 font-semibold truncate max-w-[95px] uppercase">
-                                {schedule.type === 'absence' ? 'ABS' : 'ACTIF'}
-                              </span>
-                            )}
-
-                            {/* Indicateurs additionnels (Post-it / Véhicule assigné) */}
-                            {detailedVehicle && (
-                              <span className="absolute bottom-0.5 right-1 text-[7px] bg-slate-900/60 text-white rounded px-0.5 uppercase tracking-tighter">
-                                {detailedVehicle}
-                              </span>
-                            )}
-                            {hasDetailedNotes && (
-                              <span className="absolute top-0.5 right-1 w-1.5 h-1.5 bg-yellow-400 rounded-full" title="Des observations existent sur cette journée" />
-                            )}
+                          <div className={`h-full rounded border text-center flex flex-col items-center justify-center text-[10px] font-bold uppercase ${configStyle.bg} ${configStyle.text}`}>
+                            {schedule.label}
                           </div>
-
-                          {/* Info-bulle d'aide d'affectation au survol */}
-                          <div className="absolute hidden group-hover:block z-40 bg-slate-900 text-white rounded text-[10px] p-2 -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap shadow-lg pointer-events-none">
-                            <strong>{person.prenom} {person.nom}</strong>
-                            <br />
+                          <div className="absolute bottom-0 left-0 right-0 text-[8px] text-text-muted opacity-60 truncate px-0.5">
                             {schedule.detail}
-                            {detailedVehicle && ` • Véhicule: ${detailedVehicle}`}
-                            {hasDetailedNotes && ` • Obs: ${cellNotes[detailedNoteKey].note}`}
                           </div>
                         </td>
                       );
@@ -1088,154 +1048,61 @@ export const MonthlyPlanner: React.FC = () => {
             </tbody>
           </table>
         </div>
-
-        {filteredPersonnel.length === 0 && (
-          <div className="p-12 text-center bg-slate-50/50">
-            <Users size={32} className="mx-auto mb-2 text-text-muted opacity-50" />
-            <p className="text-sm font-semibold text-text-main">Aucun personnel trouvé</p>
-            <p className="text-xs text-text-muted mt-1">Ajustez vos filtres de recherche ou de bureaux.</p>
-          </div>
-        )}
       </Card>
 
-      {/* 5. DASHBOARD STATISTIQUE & APERÇU DE LA PÉRIODE (Cockpit de couverture de l'ambulance) */}
-      <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5 mt-2">
-        <BarChart3 size={15} className="text-accent" />
-        Indicateurs analytiques & sous-tension de la période affichée ({weeksToShow} semaines)
-      </h3>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        
-        {/* Total Heures & charge de travail théorique */}
-        <Card className="p-4 bg-surface border-border rounded-xl flex items-center gap-3 shadow-sm">
-          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg">
-            <Clock size={20} />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-text-muted block uppercase">Volume horaire total</span>
-            <p className="text-xl font-extrabold text-blue-700">{periodStats.totalHours} heures</p>
-            <span className="text-[9px] text-text-muted">{periodStats.averageHoursPerAgent}h moyenne / ambulancier</span>
-          </div>
-        </Card>
-
-        {/* Consommation Congés / CP */}
-        <Card className="p-4 bg-surface border-border rounded-xl flex items-center gap-3 shadow-sm">
-          <div className="p-2.5 bg-teal-50 text-teal-600 rounded-lg">
-            <TrendingUp size={20} />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-text-muted block uppercase">CP consommés</span>
-            <p className="text-xl font-extrabold text-teal-700">{periodStats.occurrences.cp + periodStats.occurrences.rtt} jours</p>
-            <span className="text-[9px] text-text-muted">{periodStats.occurrences.cp} CP • {periodStats.occurrences.rtt} RTT • {periodStats.occurrences.rc} Récupérations</span>
-          </div>
-        </Card>
-
-        {/* Taux de Taux d'absentions de maladie */}
-        <Card className="p-4 bg-surface border-border rounded-xl flex items-center gap-3 shadow-sm">
-          <div className="p-2.5 bg-red-50 text-red-600 rounded-lg">
-            <AlertCircle size={20} />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-text-muted block uppercase">Indice maladie (CM / AT)</span>
-            <p className="text-xl font-extrabold text-red-700">{periodStats.occurrences.maladie} jours d'arrêts</p>
-            <span className="text-[9px] text-text-muted">Arrêts comptabilisés sur la période visible</span>
-          </div>
-        </Card>
-
-        {/* Alertes d'effectifs sous-tension */}
-        <Card className="p-4 bg-orange-50 border-orange-200 rounded-xl shadow-sm">
-          <span className="text-[10px] font-bold text-orange-700 block uppercase mb-1.5 flex items-center gap-1">
-            <AlertCircle size={12} />
-            Alertes sous-tension ({understaffedDays.length})
-          </span>
-          {understaffedDays.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {understaffedDays.map(item => (
-                <Badge key={item.dateStr} className="bg-orange-600 text-white text-[9px] font-bold">
-                  {item.label} (-{item.missing})
-                </Badge>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[10px] text-green-700 font-semibold flex items-center gap-1 mt-1">
-              <CheckCircle size={12} /> Tous les transports couverts pour la période
-            </p>
-          )}
-        </Card>
-
-      </div>
-
-      {/* Guide d'aide rapide pour les planificateurs */}
-      <Card className="p-5 bg-slate-100 border border-slate-200 rounded-xl">
-        <div className="flex items-start gap-3">
-          <Info size={20} className="text-slate-600 flex-shrink-0 mt-0.5" />
-          <div className="text-xs text-slate-700 space-y-1">
-            <h4 className="font-bold text-text-main text-sm mb-1">Aide à la planification rapide (Mode Tampon & Observation)</h4>
-            <p>1. Cliquez sur l'un de nos <strong>Tampons de l'équipe</strong> dans la palette de raccourcis supérieure pour l'activer.</p>
-            <p>2. Cliquez ensuite sur n'importe quelle case du planning pour appliquer l'amplitude ou l'absence en un clic.</p>
-            <p>3. **Double-cliquez** sur n'importe quel badge de la grille pour ajouter un numéro d'immatriculation, de camion ou des consignes textuelles associées.</p>
-          </div>
-        </div>
-      </Card>
-
-      {/* 5. MODAL DOUBLE CLIC INSPECTION POUR SALALRIE / CELLULE */}
+      {/* Modal d'inspection de cellule */}
       {inspectedCell && (
-        <Dialog open={!!inspectedCell} onOpenChange={() => setInspectedCell(null)}>
-          <DialogContent className="sm:max-w-[450px]">
+        <Dialog open={true} onOpenChange={() => setInspectedCell(null)}>
+          <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Edit3 size={18} className="text-accent" />
-                Détail de la journée
-              </DialogTitle>
+              <DialogTitle>Détails de la cellule</DialogTitle>
               <DialogDescription>
-                Consignes avancées pour {inspectedCell.personnelName} le {new Date(inspectedCell.dateStr).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}.
+                {inspectedCell.personnelName} • {new Date(inspectedCell.dateStr).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
               </DialogDescription>
             </DialogHeader>
-
-            <div className="space-y-4 pt-2">
+            <div className="space-y-4 mt-4">
               <div>
-                <span className="text-[11px] font-bold text-text-muted block mb-1">Statut d'affectation :</span>
-                <Badge className="bg-accent text-white py-1 text-xs">
-                  {inspectedCell.schedule.code} - {inspectedCell.schedule.detail}
-                </Badge>
+                <label className="text-sm font-medium text-text-main mb-1 block">Code planning</label>
+                <div className="px-3 py-2 bg-bg border border-border rounded-lg font-mono text-sm">
+                  {inspectedCell.schedule.code}
+                </div>
               </div>
-
-              {/* Véhicule / Camion */}
               <div>
-                <label className="text-xs font-bold text-text-main block mb-1">Immatriculation / Camion assigné :</label>
+                <label className="text-sm font-medium text-text-main mb-1 block">Détail</label>
+                <p className="text-sm text-text-muted">{inspectedCell.schedule.detail}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-text-main mb-1 block">Observations</label>
                 <Input
-                  className="h-9 text-xs"
-                  placeholder="Ex : VSL-02, AMB-08..."
-                  value={inspectedCell.vehicle}
-                  onChange={(e) => setInspectedCell({ ...inspectedCell, vehicle: e.target.value })}
-                />
-              </div>
-
-              {/* Observations */}
-              <div>
-                <label className="text-xs font-bold text-text-main block mb-1">Consignes d'observations pour la journée :</label>
-                <textarea
-                  className="w-full text-auto text-xs p-2.5 rounded-lg border border-border bg-bg h-24 focus:outline-none focus:ring-1 focus:ring-accent"
-                  placeholder="Ex : Attente appel consultation Hôpital Lariboisière, ou consignes de garde médecin..."
                   value={inspectedCell.note}
                   onChange={(e) => setInspectedCell({ ...inspectedCell, note: e.target.value })}
+                  placeholder="Notes libres..."
+                  className="mt-1"
                 />
               </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="ghost" size="sm" onClick={() => setInspectedCell(null)}>
-                Annuler
-              </Button>
-              <Button size="sm" className="bg-accent text-white" onClick={() => saveDetailedNote(inspectedCell.personnelId, inspectedCell.dateStr, inspectedCell.note, inspectedCell.vehicle)}>
-                <Save size={14} className="mr-1" />
-                Enregistrer
-              </Button>
+              <div>
+                <label className="text-sm font-medium text-text-main mb-1 block">Véhicule / Immatriculation</label>
+                <Input
+                  value={inspectedCell.vehicle}
+                  onChange={(e) => setInspectedCell({ ...inspectedCell, vehicle: e.target.value })}
+                  placeholder="Ex: AMB-123-AB"
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setInspectedCell(null)}>
+                  Fermer
+                </Button>
+                <Button onClick={() => saveDetailedNote(inspectedCell.personnelId, inspectedCell.dateStr, inspectedCell.note, inspectedCell.vehicle)} className="bg-accent hover:bg-accent/90">
+                  Sauvegarder
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
       )}
 
-      {/* Solver Modal pour la configuration fine */}
+      {/* Solver Modal */}
       <SolverModal isOpen={showSolverModal} onClose={() => setShowSolverModal(false)} />
     </div>
   );
